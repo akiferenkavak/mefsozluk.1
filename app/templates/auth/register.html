@@ -1,0 +1,140 @@
+<!-- app/templates/auth/register.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Kayıt Ol</h4>
+                <small class="text-muted">Sadece @mef.edu.tr uzantılı email adresleri kabul edilir.</small>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control", placeholder="ornek@mef.edu.tr") }}
+                        {% for error in form.email.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.nickname.label(class="form-label") }}
+                        {{ form.nickname(class="form-control") }}
+                        {% for error in form.nickname.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.real_name.label(class="form-label") }}
+                        {{ form.real_name(class="form-control") }}
+                        {% for error in form.real_name.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control") }}
+                        {% for error in form.password.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.password2.label(class="form-label") }}
+                        {{ form.password2(class="form-control") }}
+                        {% for error in form.password2.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <p>Zaten hesabın var mı? <a href="{{ url_for('auth.login') }}">Giriş yap</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}d mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{{ url_for('main.view_title', id=title.id) }}" class="text-decoration-none">
+                            {{ title.name }}
+                        </a>
+                    </h5>
+                    <p class="card-text text-muted">
+                        {{ title.entry_count() }} entry
+                        {% if title.entries.first() %}
+                            - Son: {{ title.last_entry_time.strftime('%d.%m.%Y %H:%M') }}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Sayfalama -->
+        {% if titles.pages > 1 %}
+            <nav>
+                <ul class="pagination">
+                    {% if titles.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.index', page=titles.prev_num) }}">Önceki</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in titles.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != titles.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.index', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if titles.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.index', page=titles.next_num) }}">Sonraki</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6>MEF Sözlük</h6>
+            </div>
+            <div class="card-body">
+                <p>MEF Üniversitesi öğrencileri için özel sözlük platformu.</p>
+                {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Hemen Katıl</a>
+                {% else %}
+                    <p>Hoş geldin, {{ current_user.real_name }}!</p>
+                    {% if not current_user.can_create_title() %}
+                        <small class="text-muted">
+                            Başlık açmak için {{ 7 - (current_user.created_at.date() - current_user.created_at.date()).days }} gün daha beklemelisin.
+                        </small>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

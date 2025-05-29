@@ -1,0 +1,79 @@
+/* MEF Sözlük özel stilleri */
+.entry-content {
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
+.entry-content p {
+    margin-bottom: 1rem;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #e0e0e0;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transition: box-shadow 0.3s ease;
+}
+
+.favorite-btn {
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.favorite-btn:hover {
+    transform: scale(1.05);
+}
+
+.entry-footer {
+    font-size: 0.9rem;
+}
+
+.badge {
+    font-size: 0.7rem;
+}
+
+/* Responsive düzenlemeler */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 15px;
+    }
+    
+    .entry-content {
+        font-size: 1rem;
+    }
+}
+
+/* Dark mode desteği */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+    
+    .card {
+        background-color: #2d2d2d;
+        border-color: #404040;
+    }
+}
+
+/* Entry form stil */
+.entry-form textarea {
+    min-height: 200px;
+}
+
+/* Kullanıcı profil linkleri */
+a[href*="/user/"] {
+    font-weight: 500;
+    text-decoration: none;
+}
+
+a[href*="/user/"]:hover {
+    text-decoration: underline;
+}

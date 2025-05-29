@@ -1,0 +1,33 @@
+<!-- app/templates/entry/edit_entry.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h4>Entry Düzenle</h4>
+                <small class="text-muted">{{ entry.title.name }}</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" class="entry-form">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.content.label(class="form-label") }}
+                        {{ form.content(class="form-control", rows="8") }}
+                        {% for error in form.content.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('main.view_title', id=entry.title_id) }}" class="btn btn-secondary">İptal</a>
+                        {{ form.submit(class="btn btn-primary", value="Güncelle") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

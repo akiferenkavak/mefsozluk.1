@@ -1,0 +1,33 @@
+<!-- app/templates/main/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2>Gündem</h2>
+        
+        <div class="mb-3">
+            <form class="d-flex" method="GET" action="{{ url_for('main.search') }}">
+                <input class="form-control me-2" type="search" name="q" placeholder="Başlık ara...">
+                <button class="btn btn-outline-primary" type="submit">Ara</button>
+            </form>
+        </div>
+
+        {% for title in titles.items %}
+            <div class="card-body">
+                <p>MEF Üniversitesi öğrencileri için özel sözlük platformu.</p>
+                {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Hemen Katıl</a>
+                {% else %}
+                    <p>Hoş geldin, {{ current_user.real_name }}!</p>
+                    {% if not current_user.can_create_title() %}
+                        <small class="text-muted">
+                            Başlık açmak için {{ 7 - (current_user.created_at.date() - current_user.created_at.date()).days }} gün daha beklemelisin.
+                        </small>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
