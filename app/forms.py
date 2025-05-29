@@ -55,3 +55,14 @@ class MessageForm(FlaskForm):
     subject = StringField('Konu', validators=[DataRequired(), Length(max=200)])
     content = TextAreaField('Mesaj', validators=[DataRequired(), Length(max=2000)])
     submit = SubmitField('Gönder')
+
+class ProfileForm(FlaskForm):
+    real_name = StringField('Gerçek Adınız', validators=[
+        DataRequired(), 
+        Length(min=2, max=100)
+    ])
+    bio = TextAreaField('Biyografi', validators=[
+        Length(max=500)
+    ])
+    submit = SubmitField('Profil Güncelle') 
+    
