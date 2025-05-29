@@ -2,20 +2,31 @@
 
 {% block title %}{{ user.nickname }} - Profil{% endblock %}
 
+{% block head %}
+{{ super() }}
+{# CSRF token için meta tag (JavaScript AJAX istekleri için) #}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4 text-light">
     <div class="row">
+        {# SOL SÜTUN: Profil Bilgileri, Aksiyonlar, İstatistikler #}
         <div class="col-md-4 mb-4">
+            
+            {# Profil Bilgi Kartı #}
             <div class="card bg-dark border-secondary shadow-sm">
                 <div class="card-body p-4">
-                    {# Profil Resmi Alanı (İsteğe bağlı, yorumu kaldırıp kendi resim yolunuzu ekleyebilirsiniz) #}
+                    {# Profil resmi için bir yer bırakılabilir, isteğe bağlı #}
                     {# 
                     <img src="{{ url_for('static', filename='img/profile_pics/' + (user.profile_image_file if user.profile_image_file else 'default.png')) }}" 
                          alt="{{ user.nickname }}" class="img-fluid rounded-circle mb-3 mx-auto d-block shadow" 
                          style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #444;">
                     #}
                     <h2 class="text-center mb-1">{{ user.nickname }}</h2>
-                    <p class="text-center text-white-50 mb-3">{{ user.real_name }}</p>
+                    {% if user.real_name %}
+                        <p class="text-center text-white-50 mb-3">{{ user.real_name }}</p>
+                    {% endif %}
                     
                     {% if user.bio %}
                         <h5 class="mt-3 border-top border-secondary pt-3"><i class="fas fa-info-circle me-2 text-primary"></i>Biyografi</h5>
@@ -30,10 +41,11 @@
                 </div>
             </div>
 
+            {# Aksiyon Butonları Kartı #}
             <div class="card bg-dark border-secondary shadow-sm mt-3">
                 <div class="card-body p-3">
                     <div class="d-grid gap-2">
-                        {% if current_user == user %}
+                        {% if current_user.is_authenticated and current_user.id == user.id %}
                             <a href="{{ url_for('user.edit_profile') }}" class="btn btn-outline-light"><i class="fas fa-edit me-1"></i> Profili Düzenle</a>
                             <a href="{{ url_for('user.my_entries') }}" class="btn btn-outline-info"><i class="fas fa-list-alt me-1"></i> Entry'lerim</a>
                             <a href="{{ url_for('user.favorites') }}" class="btn btn-outline-warning"><i class="fas fa-heart me-1"></i> Favorilerim</a>
@@ -49,20 +61,23 @@
                             </a>
                              <a href="{{ url_for('user.settings') }}" class="btn btn-outline-secondary"><i class="fas fa-cog me-1"></i> Ayarlar</a>
                         {% elif current_user.is_authenticated %}
+                            {# Takip Et/Takipten Çık Butonu #}
                             <button id="followBtn" class="btn {% if current_user.is_following(user) %}btn-danger{% else %}btn-success{% endif %}" 
                                     data-nickname="{{ user.nickname }}" 
                                     data-action="{% if current_user.is_following(user) %}unfollow{% else %}follow{% endif %}">
                                 <i class="fas {% if current_user.is_following(user) %}fa-user-minus{% else %}fa-user-plus{% endif %} me-1"></i>
                                 <span id="followBtnText">{% if current_user.is_following(user) %}Takipten Çık{% else %}Takip Et{% endif %}</span>
                             </button>
+                            {# Mesaj Gönder Butonu #}
                             <a href="{{ url_for('user.send_message', nickname=user.nickname) }}" class="btn btn-outline-primary"><i class="fas fa-paper-plane me-1"></i> Mesaj Gönder</a>
                         {% else %}
-                             <a href="{{ url_for('auth.login', next=request.url) }}" class="btn btn-outline-light">Takip etmek için giriş yapın</a>
+                            <a href="{{ url_for('auth.login', next=request.url) }}" class="btn btn-outline-light">Takip etmek veya mesaj göndermek için giriş yapın</a>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
+            {# İstatistikler Kartı #}
             <div class="card bg-dark border-secondary shadow-sm mt-3">
                 <div class="card-header bg-secondary text-white border-bottom border-light-subtle">
                     <h4 class="mb-0 h5"><i class="fas fa-chart-bar me-2"></i>İstatistikler</h4>
@@ -73,11 +88,11 @@
                         <span class="badge bg-primary rounded-pill">{{ stats.total_entries }}</span>
                     </li>
                     <li class="list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center px-3 py-2">
-                        <a href="{{ url_for('user.followers', nickname=user.nickname) }}" class="text-light text-decoration-none hover-primary">Takipçi Sayısı</a>
+                        <a href="{{ url_for('user.followers', nickname=user.nickname) }}" class="text-light text-decoration-none hover-underline">Takipçi Sayısı</a>
                         <span id="followerCountBadge" class="badge bg-info rounded-pill">{{ stats.follower_count }}</span>
                     </li>
                     <li class="list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center px-3 py-2">
-                        <a href="{{ url_for('user.following', nickname=user.nickname) }}" class="text-light text-decoration-none hover-primary">Takip Edilen Sayısı</a>
+                        <a href="{{ url_for('user.following', nickname=user.nickname) }}" class="text-light text-decoration-none hover-underline">Takip Edilen Sayısı</a>
                         <span class="badge bg-success rounded-pill">{{ stats.following_count }}</span>
                     </li>
                     <li class="list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center px-3 py-2">
@@ -88,12 +103,14 @@
             </div>
         </div>
 
+        {# SAĞ SÜTUN: Kullanıcının Entry'leri #}
         <div class="col-md-8">
             <div class="bg-dark border-secondary p-4 rounded shadow-sm">
                 <h3 class="mb-4 border-bottom border-secondary pb-2"><i class="fas fa-feather-alt me-2 text-primary"></i>{{ user.nickname }} Kullanıcısının Entry'leri</h3>
+                
                 {% if entries.items %}
                     {% for entry in entries.items %}
-                    <div class="card mb-3 bg-secondary border-dark text-light shadow-sm"> {# Kartlar için biraz daha açık bir koyu tonu #}
+                    <div class="card mb-3 bg-secondary border-dark text-light shadow-sm">
                         <div class="card-body">
                             <h5 class="card-title mb-1">
                                 <a href="{{ url_for('main.view_title', id=entry.title.id) }}" class="link-light text-decoration-none hover-underline">{{ entry.title.name }}</a>
@@ -103,27 +120,31 @@
                                 {% if entry.updated_at and entry.created_at %}
                                     {% set updated_at_aware = entry.updated_at.replace(tzinfo=timezone.utc) if entry.updated_at.tzinfo is none else entry.updated_at.astimezone(timezone.utc) %}
                                     {% set created_at_aware_for_compare = entry.created_at.replace(tzinfo=timezone.utc) if entry.created_at.tzinfo is none else entry.created_at.astimezone(timezone.utc) %}
-                                    {% if (updated_at_aware - created_at_aware_for_compare).total_seconds() > 60 %} {# Sadece 1 dakikadan fazla fark varsa göster #}
+                                    {% if (updated_at_aware - created_at_aware_for_compare).total_seconds() > 60 %}
                                         <span class="badge bg-dark text-white-50 ms-2" title="Düzenlenme Tarihi: {{ updated_at_aware.strftime('%d %B %Y, %H:%M') }}">düzenlendi</span>
                                     {% endif %}
                                 {% endif %}
                             </small>
                             <div class="entry-content-preview mb-3" style="max-height: 100px; overflow: hidden;">
-                                {# entry.content|safe eğer HTML içeriyorsa, |striptags|truncate(250) daha güvenli olabilir #}
                                 {{ entry.content | striptags | truncate(250, True, '...') }} 
                             </div>
                             <a href="{{ url_for('main.view_title', id=entry.title.id, _anchor='entry-' ~ entry.id|string) }}" class="btn btn-sm btn-outline-light">
-                                <i class="fas fa-book-reader"></i> Entry'ye Git
+                                <i class="fas fa-book-reader me-1"></i> Entry'ye Git
                             </a>
                             <span class="ms-2 text-white-50 small">
                                 <i class="fas fa-heart text-danger"></i> {{ entry.favorite_count() }}
                             </span>
+                            {# Bu entry için favori ekle/çıkar butonu (title.html'deki gibi) buraya da eklenebilir.
+                               Eğer eklenecekse, main.js'deki favori AJAX kodunun .favorite-btn class'ını
+                               ve data-entry-id attribute'unu kullanması gerekir.
+                            #}
                         </div>
                     </div>
                     {% endfor %}
 
+                    {# Entry'ler için Sayfalama #}
                     {% if entries.pages > 1 %}
-                    <nav aria-label="User entries pagination" class="mt-4">
+                    <nav aria-label="Kullanıcı entryleri sayfalama" class="mt-4">
                         <ul class="pagination justify-content-center">
                             {% if entries.has_prev %}
                                 <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.profile', nickname=user.nickname, page=entries.prev_num) }}">Önceki</a></li>
@@ -161,6 +182,11 @@
         </div>
     </div>
 </div>
+
+{# Flash mesajları için container (sayfanın en altında veya uygun bir yerde) #}
+<div id="flash-messages-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
+    {# JavaScript ile buraya flash mesajlar eklenecek #}
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -168,95 +194,141 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const followBtn = document.getElementById('followBtn');
+    
     if (followBtn) {
-        followBtn.addEventListener('click', function() {
-            const nickname = this.dataset.nickname;
-            let action = this.dataset.action;
-            // CSRF token'ını bir meta etiketinden veya doğrudan şablondan alabilirsiniz.
-            // Örnek olarak bir meta etiketi varsayalım: <meta name="csrf-token" content="{{ csrf_token() }}">
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() if csrf_token else "" }}';
+        const buttonElement = followBtn; // 'followBtn' elementini burada saklayın
+
+        buttonElement.addEventListener('click', function() {
+            // console.log('Follow button clicked'); 
             
-            // URL'leri Flask'ın url_for'u ile oluşturmak en iyisidir, 
-            // ancak JS içinden bu zordur. Rotaları JS'ye aktarabilir veya sabit bir yapı kullanabilirsiniz.
-            // Şimdilik rotayı doğrudan oluşturuyoruz:
+            const nickname = buttonElement.dataset.nickname; 
+            let action = buttonElement.dataset.action;      
+            
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (!csrfToken) {
+                console.error('CSRF token bulunamadı');
+                showFlashMessage('Güvenlik token\'ı bulunamadı. Sayfayı yenileyin.', 'danger');
+                return;
+            }
+            
+            // user.py'deki blueprint'inize göre URL'ler.
+            // Eğer user blueprint'i /user prefix'i ile kayıtlıysa:
+            // const followUrl = `/user/follow/${nickname}`; 
+            // const unfollowUrl = `/user/unfollow/${nickname}`;
+            // Eğer user blueprint'i prefix olmadan kayıtlıysa (veya app.register_blueprint(user_bp) ise):
             const followUrl = "{{ url_for('user.follow_user', nickname='USER_NICKNAME_PLACEHOLDER') }}".replace('USER_NICKNAME_PLACEHOLDER', nickname);
             const unfollowUrl = "{{ url_for('user.unfollow_user', nickname='USER_NICKNAME_PLACEHOLDER') }}".replace('USER_NICKNAME_PLACEHOLDER', nickname);
+            
             const url = action === 'follow' ? followUrl : unfollowUrl;
+            
+            // console.log('Request URL:', url); 
+            // console.log('Action:', action); 
+            
+            buttonElement.disabled = true; 
             
             fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json', // Eğer sunucu JSON bekliyorsa
+                    'Content-Type': 'application/json', // API'niz JSON bekliyorsa
                     'X-CSRFToken': csrfToken 
                 }
-                // body: JSON.stringify({}) // Eğer POST ile veri gönderiyorsanız
+                // body: JSON.stringify({}) // Eğer API'niz boş body ile çalışıyorsa
             })
             .then(response => {
+                // console.log('Response status:', response.status);
                 if (!response.ok) {
-                    // throw new Error('Network response was not ok: ' + response.statusText);
-                    return response.json().then(err => { throw err; }); // Hata mesajını JSON'dan al
+                    return response.json().then(errData => {
+                        throw { status: response.status, data: errData }; 
+                    }).catch(() => {
+                        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+                    });
                 }
                 return response.json();
             })
             .then(data => {
+                // console.log('Response data:', data); 
+                
                 if (data.success) {
-                    const followBtnText = document.getElementById('followBtnText');
-                    const followerCountBadge = document.getElementById('followerCountBadge');
-                    const icon = followBtn.querySelector('i');
+                    const followBtnText = document.getElementById('followBtnText'); // Bu ID'li span HTML'de olmalı
+                    const followerCountBadge = document.getElementById('followerCountBadge'); // Bu ID'li span HTML'de olmalı
+                    const icon = buttonElement.querySelector('i');
 
                     if (action === 'follow') {
-                        this.dataset.action = 'unfollow';
-                        followBtnText.textContent = 'Takipten Çık';
-                        followBtn.classList.remove('btn-success');
-                        followBtn.classList.add('btn-danger');
-                        icon.classList.remove('fa-user-plus');
-                        icon.classList.add('fa-user-minus');
-                    } else {
-                        this.dataset.action = 'follow';
-                        followBtnText.textContent = 'Takip Et';
-                        followBtn.classList.remove('btn-danger');
-                        followBtn.classList.add('btn-success');
-                        icon.classList.remove('fa-user-minus');
-                        icon.classList.add('fa-user-plus');
+                        buttonElement.dataset.action = 'unfollow'; 
+                        if (followBtnText) followBtnText.textContent = 'Takipten Çık';
+                        buttonElement.classList.remove('btn-success'); 
+                        buttonElement.classList.add('btn-danger');    
+                        if (icon) {
+                            icon.classList.remove('fa-user-plus');
+                            icon.classList.add('fa-user-minus');
+                        }
+                    } else { // action === 'unfollow'
+                        buttonElement.dataset.action = 'follow';   
+                        if (followBtnText) followBtnText.textContent = 'Takip Et';
+                        buttonElement.classList.remove('btn-danger');  
+                        buttonElement.classList.add('btn-success');  
+                        if (icon) {
+                            icon.classList.remove('fa-user-minus');
+                            icon.classList.add('fa-user-plus');
+                        }
                     }
+                    
                     if (followerCountBadge && data.follower_count !== undefined) {
                         followerCountBadge.textContent = data.follower_count;
                     }
-                    // İsteğe bağlı: Başarı mesajını göstermek için bir toast/alert kullanabilirsiniz
-                    // showFlashMessage(data.message, 'success');
+                    
+                    showFlashMessage(data.message, 'success');
                 } else {
-                    // Hata mesajını göster
-                    // showFlashMessage(data.message || 'İşlem başarısız oldu.', 'danger');
-                    console.warn('İşlem başarısız:', data.message);
+                    showFlashMessage(data.message || 'İşlem başarısız oldu.', 'danger');
                 }
             })
             .catch(error => {
                 console.error('Fetch Error:', error);
-                // showFlashMessage(error.message || 'Bir hata oluştu. Lütfen tekrar deneyin.', 'danger');
+                let errorMessage = 'Bir hata oluştu. Lütfen tekrar deneyin.';
+                if (error && error.data && error.data.message) {
+                    errorMessage = error.data.message; 
+                } else if (error && error.message) {
+                    errorMessage = error.message;
+                }
+                showFlashMessage(errorMessage, 'danger');
+            })
+            .finally(() => {
+                buttonElement.disabled = false; 
             });
         });
     }
 
-    // Basit bir flash mesaj gösterme fonksiyonu (isteğe bağlı)
-    /*
+    // Flash mesaj gösterme fonksiyonu
     function showFlashMessage(message, category) {
-        const flashContainer = document.getElementById('flash-messages-container'); // Bu ID'ye sahip bir div olmalı base.html'de
+        const flashContainer = document.getElementById('flash-messages-container');
         if (flashContainer) {
             const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${category} alert-dismissible fade show m-3`;
+            // Toast stili için Bootstrap class'ları
+            alertDiv.className = `toast align-items-center text-white bg-${category} border-0 mb-2`;
             alertDiv.role = 'alert';
+            alertDiv.setAttribute('aria-live', 'assertive');
+            alertDiv.setAttribute('aria-atomic', 'true');
+
             alertDiv.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
             `;
             flashContainer.appendChild(alertDiv);
-            setTimeout(() => {
-                alertDiv.classList.remove('show');
-                alertDiv.addEventListener('transitionend', () => alertDiv.remove());
-            }, 5000);
+            
+            const toast = new bootstrap.Toast(alertDiv, { delay: 5000 });
+            toast.show();
+
+            // Toast gizlendikten sonra DOM'dan kaldır
+            alertDiv.addEventListener('hidden.bs.toast', function () {
+                alertDiv.remove();
+            });
         }
     }
-    */
 });
 </script>
 {% endblock %}
