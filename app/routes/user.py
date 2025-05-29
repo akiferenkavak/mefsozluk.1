@@ -39,7 +39,8 @@ def profile(nickname):
     return render_template('user/profile.html', 
                          user=user, 
                          entries=entries, 
-                         stats=stats)
+                         stats=stats,
+                         timezone=timezone)
 
 @bp.route('/edit-profile', methods=['GET', 'POST'])
 @login_required
