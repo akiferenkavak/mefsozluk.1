@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - MEF Sözlük{% endblock %}
+
+{% block content %}
+<div class="container mt-4 text-light">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="bg-dark border-secondary p-4 rounded shadow-sm">
+                <h3 class="mb-4 border-bottom border-secondary pb-2">
+                    <i class="fas fa-search me-2 text-primary"></i>Kullanıcı Ara
+                </h3>
+
+                <form method="GET" action="{{ url_for('user.search_users') }}" class="mb-4">
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control form-control-lg bg-secondary text-light border-dark" 
+                               placeholder="Kullanıcı adı veya gerçek ad..." value="{{ query or '' }}">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-search"></i> Ara
+                        </button>
+                    </div>
+                </form>
+
+                {% if query %}
+                    <h4 class="h5 mb-3">Arama Sonuçları: "{{ query }}"</h4>
+                {% endif %}
+
+                {% if users %}
+                    <p class="text-white-50 mb-2">{{ users|length }} kullanıcı bulundu.</p>
+                    <ul class="list-group">
+                        {% for u in users %}
+                            <li class="list-group-item bg-secondary text-light border-dark d-flex flex-column flex-sm-row justify-content-between align-items-sm-center p-3 mb-2 rounded">
+                                <div class="mb-2 mb-sm-0">
+                                    <a href="{{ url_for('user.profile', nickname=u.nickname) }}" class="link-light text-decoration-none fw-bold fs-5 hover-underline">{{ u.nickname }}</a>
+                                    {% if u.real_name %}<small class="text-white-50 ms-2 d-block d-sm-inline">({{ u.real_name }})</small>{% endif %}
+                                </div>
+                                <div class="mt-2 mt-sm-0">
+                                    <a href="{{ url_for('user.send_message', nickname=u.nickname) }}" class="btn btn-sm btn-outline-primary me-2">
+                                        <i class="fas fa-paper-plane me-1"></i> Mesaj Gönder
+                                    </a>
+                                    {# İsteğe bağlı: Takip Et/Takipten Çık butonu buraya da eklenebilir.
+                                       Bu, profile.html'deki AJAX'lı takip butonuna benzer bir yapı gerektirir.
+                                    <button class="btn btn-sm {% if current_user.is_authenticated and current_user.is_following(u) %}btn-outline-danger{% elif current_user.is_authenticated %}btn-outline-success{% else %}btn-outline-light disabled{% endif %} follow-btn-search" 
+                                            data-nickname="{{ u.nickname }}" 
+                                            data-action="{% if current_user.is_authenticated and current_user.is_following(u) %}unfollow{% else %}follow{% endif %}"
+                                            {% if not current_user.is_authenticated %}disabled{% endif %}>
+                                        <i class="fas {% if current_user.is_authenticated and current_user.is_following(u) %}fa-user-minus{% else %}fa-user-plus{% endif %} me-1"></i>
+                                        <span class="follow-text">{% if current_user.is_authenticated and current_user.is_following(u) %}Takipten Çık{% else %}Takip Et{% endif %}</span>
+                                    </button>
+                                    #}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% elif query %} {# Arama yapıldı ama sonuç yok #}
+                    <div class="alert bg-info text-dark border-info mt-3" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>"{{ query }}" ile eşleşen kullanıcı bulunamadı. Lütfen farklı bir arama terimi deneyin.
+                    </div>
+                {% else %} {# Henüz arama yapılmadı (sayfa ilk açıldığında) #}
+                    <div class="alert bg-dark text-white-50 border-secondary mt-3" role="alert">
+                        Mesaj göndermek veya profillerini görmek için kullanıcı arayabilirsiniz.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# Eğer yukarıdaki yorum satırındaki Takip Et/Takipten Çık butonu eklenecekse,
+   profile.html'deki followBtn JavaScript koduna benzer bir kod buraya da uyarlanabilir.
+   Seçicinin `.follow-btn-search` ve `followerCountBadge` gibi ID'lerin
+   bu sayfada olmaması durumuna dikkat edilerek düzenlenmesi gerekir.
+#}
+{% endblock %}

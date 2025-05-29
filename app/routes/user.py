@@ -100,31 +100,41 @@ def unfollow_user(nickname):
 
 @bp.route('/following/<nickname>')
 def following(nickname):
-    user = User.query.filter_by(nickname=nickname).first_or_404()
+    # Profili görüntülenen kullanıcı (kimin takip ettiklerine bakıyoruz)
+    profile_user = User.query.filter_by(nickname=nickname).first_or_404()
     page = request.args.get('page', 1, type=int)
     
-    following_users = User.query.join(Follow, User.id == Follow.followed_id)\
-                               .filter(Follow.follower_id == user.id)\
-                               .paginate(page=page, per_page=20, error_out=False)
+    # profile_user'ın takip ettiği kullanıcıların listesi
+    # Follow.created_at olduğunu varsayıyorum, yoksa User.nickname'a göre sıralanabilir.
+    following_pagination = User.query.join(Follow, User.id == Follow.followed_id)\
+        .filter(Follow.follower_id == profile_user.id)\
+        .order_by(desc(Follow.created_at)) \
+        .paginate(page=page, per_page=20, error_out=False)
     
     return render_template('user/following.html', 
-                         user=user, 
-                         users=following_users, 
-                         title='Takip Edilenler')
+                           profile_user=profile_user, # Kimin listesi olduğu bilgisi
+                           users_page=following_pagination, # Takip edilen kullanıcıların paginated listesi
+                           title=f"{profile_user.nickname} Takip Ettikleri",
+                           timezone=timezone)
 
 @bp.route('/followers/<nickname>')
 def followers(nickname):
-    user = User.query.filter_by(nickname=nickname).first_or_404()
+    # Profili görüntülenen kullanıcı (kimin takipçilerine bakıyoruz)
+    profile_user = User.query.filter_by(nickname=nickname).first_or_404()
     page = request.args.get('page', 1, type=int)
     
-    follower_users = User.query.join(Follow, User.id == Follow.follower_id)\
-                              .filter(Follow.followed_id == user.id)\
-                              .paginate(page=page, per_page=20, error_out=False)
-    
+    # profile_user'ı takip eden kullanıcıların listesi
+    # Follow.created_at olduğunu varsayıyorum
+    followers_pagination = User.query.join(Follow, User.id == Follow.follower_id)\
+        .filter(Follow.followed_id == profile_user.id)\
+        .order_by(desc(Follow.created_at)) \
+        .paginate(page=page, per_page=20, error_out=False)
+        
     return render_template('user/followers.html', 
-                         user=user, 
-                         users=follower_users, 
-                         title='Takipçiler')
+                           profile_user=profile_user, # Kimin listesi olduğu bilgisi
+                           users_page=followers_pagination, # Takipçilerin paginated listesi
+                           title=f"{profile_user.nickname} Takipçileri",
+                           timezone=timezone)
 
 @bp.route('/messages')
 @login_required
@@ -159,28 +169,46 @@ def sent_messages():
 @bp.route('/send-message/<nickname>', methods=['GET', 'POST'])
 @login_required
 def send_message(nickname):
-    recipient = User.query.filter_by(nickname=nickname).first_or_404()
+    recipient_user = User.query.filter_by(nickname=nickname).first_or_404() # recipient -> recipient_user olarak değiştirdim
     
-    if recipient == current_user:
+    if recipient_user == current_user:
         flash('Kendine mesaj gönderemezsin.')
         return redirect(url_for('user.profile', nickname=nickname))
     
     form = MessageForm()
+    
+    # Formun recipient alanını GET isteğinde ve POST öncesi doldur
+    # Bu, DataRequired doğrulamasını geçmesi için önemlidir.
+    # Kullanıcı bu alanı görmeyecek ama formun bir parçası olacak.
+    if request.method == 'GET':
+        if request.args.get('subject'):
+            form.subject.data = request.args.get('subject')
+    
+    # Her durumda (GET veya POST) formun recipient alanını alıcının kullanıcı adıyla doldur
+    # Eğer bu alan şablonda gizli olarak render edilecekse veya sadece validasyon içinse
+    form.recipient.data = recipient_user.nickname 
+
     if form.validate_on_submit():
         message = Message(
             sender_id=current_user.id,
-            recipient_id=recipient.id,
+            recipient_id=recipient_user.id, # recipient_user.id kullanılıyor
             subject=form.subject.data,
             content=form.content.data
         )
-        
+        # form.recipient.data burada kullanılmıyor, recipient_user kullanılıyor.
         db.session.add(message)
         db.session.commit()
-        
-        flash(f'{recipient.nickname} kullanıcısına mesaj gönderildi!')
-        return redirect(url_for('user.profile', nickname=nickname))
+        flash(f'{recipient_user.nickname} kullanıcısına mesaj gönderildi!', 'success')
+        return redirect(url_for('user.profile', nickname=recipient_user.nickname))
     
-    return render_template('user/send_message.html', form=form, recipient=recipient)
+    # Eğer validate_on_submit False ise, form hatalarını görmek için:
+    # print(form.errors) # Bu satırı sunucu konsolunda hataları görmek için ekleyebilirsiniz.
+
+    return render_template('user/send_message.html', 
+                           title=f"{recipient_user.nickname} Kullanıcısına Mesaj Gönder",
+                           form=form, 
+                           recipient=recipient_user, # recipient_user şablona gönderiliyor
+                           timezone=timezone)
 
 @bp.route('/message/<int:id>')
 @login_required
@@ -189,15 +217,20 @@ def view_message(id):
     
     # Sadece gönderen veya alan kişi görebilir
     if message.sender_id != current_user.id and message.recipient_id != current_user.id:
-        flash('Bu mesajı görme yetkiniz yok.')
+        flash('Bu mesajı görme yetkiniz yok.', 'warning') # Flash mesaj kategorisi eklendi
         return redirect(url_for('user.messages'))
     
-    # Eğer mesajı alan kişiyse, okundu olarak işaretle
+    # Eğer mesajı alan kişiyse ve mesaj okunmamışsa, okundu olarak işaretle
     if message.recipient_id == current_user.id and not message.is_read:
         message.mark_as_read()
         db.session.commit()
     
-    return render_template('user/view_message.html', message=message)
+    page_title = f"Mesaj: {message.subject}" if message.subject else "Mesaj Detayı"
+
+    return render_template('user/view_message.html', 
+                           message=message,
+                           title=page_title,    # Sayfa başlığı eklendi
+                           timezone=timezone)   # Timezone eklendi
 
 @bp.route('/favorites')
 @login_required
@@ -236,17 +269,25 @@ def my_entries():
 def settings():
     return render_template('user/settings.html')
 
-@bp.route('/search-users')
+@bp.route('/search-users', methods=['GET']) # GET metodunu belirtmek iyi bir pratik
 def search_users():
-    query = request.args.get('q', '')
+    query = request.args.get('q', '').strip() # Baştaki/sondaki boşlukları temizle
+    page_title = "Kullanıcı Ara"
+
     if not query:
-        return render_template('user/search_users.html', users=[], query='')
+        users = [] # Arama yapılmadıysa boş liste
+    else:
+        page_title = f"Arama Sonuçları: '{query}'"
+        users = User.query.filter(
+            User.is_active == True, # Aktif kullanıcıları filtrele
+            or_(
+                User.nickname.ilike(f"%{query}%"),  # Büyük/küçük harf duyarsız arama
+                User.real_name.ilike(f"%{query}%")
+            )
+        ).limit(20).all()
     
-    users = User.query.filter(
-        or_(
-            User.nickname.contains(query),
-            User.real_name.contains(query)
-        )
-    ).filter(User.is_active == True).limit(20).all()
-    
-    return render_template('user/search_users.html', users=users, query=query)
+    return render_template('user/search_users.html', 
+                           users=users, 
+                           query=query, 
+                           title=page_title,
+                           timezone=timezone) # Tarih formatlaması için tutarlılık (gerçi bu sayfada pek kullanılmıyor)

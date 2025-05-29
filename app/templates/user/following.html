@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - MEF Sözlük{% endblock %}
+
+{% block content %}
+<div class="container mt-4 text-light">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="bg-dark border-secondary p-4 rounded shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="border-bottom border-secondary pb-2 mb-0 text-break">
+                        <i class="fas fa-users me-2 text-primary"></i>{{ title }}
+                    </h3>
+                     <a href="{{ url_for('user.profile', nickname=profile_user.nickname) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> {{ profile_user.nickname }} Profiline Dön
+                    </a>
+                </div>
+
+                {% if users_page.items %}
+                    <p class="text-white-50 mb-2">{{ profile_user.nickname }} kullanıcısının {{ users_page.total }} takipçisi var.</p>
+                    <ul class="list-group">
+                        {% for u in users_page.items %}
+                            <li class="list-group-item bg-secondary text-light border-dark d-flex flex-column flex-sm-row justify-content-between align-items-sm-center p-3 mb-2 rounded">
+                                <div class="mb-2 mb-sm-0">
+                                    <a href="{{ url_for('user.profile', nickname=u.nickname) }}" class="link-light text-decoration-none fw-bold fs-5 hover-underline">{{ u.nickname }}</a>
+                                    {% if u.real_name %}<small class="text-white-50 ms-2 d-block d-sm-inline">({{ u.real_name }})</small>{% endif %}
+                                </div>
+                                <div class="mt-2 mt-sm-0">
+                                    {% if current_user.is_authenticated %}
+                                        {% if current_user.id == u.id %}
+                                            <a href="{{ url_for('user.edit_profile') }}" class="btn btn-sm btn-outline-light disabled">Bu Sensin</a>
+                                        {% elif current_user.is_following(u) %}
+                                            <button class="btn btn-sm btn-danger follow-toggle-btn" 
+                                                    data-nickname="{{ u.nickname }}" 
+                                                    data-action="unfollow">
+                                                <i class="fas fa-user-minus me-1"></i>Takipten Çık
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-success follow-toggle-btn" 
+                                                    data-nickname="{{ u.nickname }}" 
+                                                    data-action="follow">
+                                                <i class="fas fa-user-plus me-1"></i>Takip Et
+                                            </button>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="{{ url_for('user.profile', nickname=u.nickname) }}" class="btn btn-sm btn-outline-light">Profili Gör</a>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    {# Sayfalama #}
+                    {% if users_page.pages > 1 %}
+                    <nav aria-label="Takipçiler sayfalama" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if users_page.has_prev %}
+                                <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.followers', nickname=profile_user.nickname, page=users_page.prev_num) }}">Önceki</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Önceki</span></li>
+                            {% endif %}
+
+                            {% for page_num in users_page.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                {% if page_num %}
+                                    {% if users_page.page == page_num %}
+                                        <li class="page-item active" aria-current="page"><span class="page-link bg-primary text-white border-primary">{{ page_num }}</span></li>
+                                    {% else %}
+                                        <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.followers', nickname=profile_user.nickname, page=page_num) }}">{{ page_num }}</a></li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link bg-dark text-muted border-secondary">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if users_page.has_next %}
+                                <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.followers', nickname=profile_user.nickname, page=users_page.next_num) }}">Sonraki</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Sonraki</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="alert bg-info text-dark border-info mt-3" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>{{ profile_user.nickname }} kullanıcısının henüz hiç takipçisi yok.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# following.html ile aynı JavaScript kodu burada da kullanılabilir. 
+   .follow-toggle-btn class'ı ortak olduğu için çalışacaktır.
+   URL'ler de Jinja içinde doğru oluşturuluyor.
+#}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : null;
+
+    document.querySelectorAll('.follow-toggle-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            if (!current_user.is_authenticated) { // Bu kontrol Jinja'da yapılmalı, JS'de current_user yok.
+                                                 // Buton zaten disable edilmiş olmalı.
+                return; 
+            }
+            if (!csrfToken && (this.dataset.action === 'follow' || this.dataset.action === 'unfollow')) {
+                alert('İşlem için güvenlik tokeni bulunamadı. Lütfen sayfayı yenileyin.');
+                return;
+            }
+
+            const userNickname = this.dataset.nickname;
+            let currentAction = this.dataset.action;
+            // API endpoint'lerinizin api.py altında olduğunu varsayıyorum.
+            // Eğer user.py altındaysa 'api.' prefix'ini 'user.' ile değiştirin.
+            const followUrl = "{{ url_for('api.follow_user', nickname='USER_NICKNAME_PLACEHOLDER') }}".replace('USER_NICKNAME_PLACEHOLDER', userNickname);
+            const unfollowUrl = "{{ url_for('api.unfollow_user', nickname='USER_NICKNAME_PLACEHOLDER') }}".replace('USER_NICKNAME_PLACEHOLDER', userNickname);
+            const url = currentAction === 'follow' ? followUrl : unfollowUrl;
+            
+            const iconElement = this.querySelector('i'); // Buton içindeki ikonu almak için
+            // const textElement = this.querySelector('span.follow-text'); // Buton içindeki span'i almak için (HTML'de span.follow-text eklenmeli)
+            // Veya direkt butonun innerHTML'ini değiştireceğiz.
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    if (currentAction === 'follow') {
+                        this.dataset.action = 'unfollow';
+                        this.innerHTML = '<i class="fas fa-user-minus me-1"></i>Takipten Çık';
+                        this.classList.remove('btn-success');
+                        this.classList.add('btn-danger');
+                    } else {
+                        this.dataset.action = 'follow';
+                        this.innerHTML = '<i class="fas fa-user-plus me-1"></i>Takip Et';
+                        this.classList.remove('btn-danger');
+                        this.classList.add('btn-success');
+                    }
+                } else {
+                    alert(data.message || 'İşlem başarısız oldu.');
+                }
+            })
+            .catch(error => {
+                console.error('Takip/Takipten çıkma hatası:', error);
+                alert(error.message || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
