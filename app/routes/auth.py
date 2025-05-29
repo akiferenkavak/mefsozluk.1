@@ -12,7 +12,7 @@ bp = Blueprint('auth', __name__)
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
-    
+
     form = RegistrationForm()
     if form.validate_on_submit():
         user = User(
@@ -21,45 +21,45 @@ def register():
             real_name=form.real_name.data
         )
         user.set_password(form.password.data)
-        
+
         # Email doğrulama token'ı oluştur
         token = user.generate_confirmation_token()
-        
+
         db.session.add(user)
         db.session.commit()
-        
+
         # Doğrulama mailini gönder
         send_confirmation_email(user, token)
-        
+
         flash('Kayıt başarılı! Lütfen email adresinizi kontrol edin ve hesabınızı doğrulayın.')
         return redirect(url_for('auth.login'))
-    
+
     return render_template('auth/register.html', form=form)
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
-    
+
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
-        
+
         if user and user.check_password(form.password.data):
             if not user.email_confirmed:
                 flash('Lütfen önce email adresinizi doğrulayın.')
                 return redirect(url_for('auth.login'))
-            
+
             if not user.is_active:
                 flash('Hesabınız devre dışı bırakılmış.')
                 return redirect(url_for('auth.login'))
-            
+
             login_user(user, remember=form.remember_me.data)
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('main.index'))
-        
+
         flash('Geçersiz email veya şifre.')
-    
+
     return render_template('auth/login.html', form=form)
 
 @bp.route('/logout')
@@ -77,7 +77,7 @@ def confirm_email(token):
         flash('Email adresiniz başarıyla doğrulandı!')
     else:
         flash('Geçersiz doğrulama linki.')
-    
+
     return redirect(url_for('auth.login'))
 
 def send_confirmation_email(user, token):
@@ -89,7 +89,6 @@ def send_confirmation_email(user, token):
         <h2>Hoş geldin {user.real_name}!</h2>
         <p>MEF Sözlük'e kaydınızı tamamlamak için aşağıdaki linke tıklayın:</p>
         <a href="{url_for('auth.confirm_email', token=token, _external=True)}">Hesabımı Doğrula</a>
-        ''',
-        sender='noreply@mefsozluk.com'
+        '''
     )
     mail.send(msg)

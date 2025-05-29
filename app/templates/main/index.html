@@ -1,32 +1,139 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <h2>Gündem</h2>
-        
-        <div class="mb-3">
-            <form class="d-flex" method="GET" action="{{ url_for('main.search') }}">
-                <input class="form-control me-2" type="search" name="q" placeholder="Başlık ara...">
-                <button class="btn btn-outline-primary" type="submit">Ara</button>
-            </form>
-        </div>
-
-        {% for title in titles.items %}
-            <div class="card-body">
-                <p>MEF Üniversitesi öğrencileri için özel sözlük platformu.</p>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-9"> {# Daha geniş bir alan için col-md-9 olarak güncellendi #}
+            <div class="mb-4 p-4 bg-dark text-light rounded shadow-sm border border-secondary">
+                <h2>MEF Sözlük'e Hoş Geldiniz!</h2>
+                <p class="lead">MEF Üniversitesi öğrencileri ve akademisyenleri için interaktif sözlük platformu.</p>
                 {% if not current_user.is_authenticated %}
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Hemen Katıl</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary me-2">Hemen Katıl</a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-light">Giriş Yap</a> {# Açık renk buton koyu arka planda daha iyi görünebilir #}
                 {% else %}
-                    <p>Hoş geldin, {{ current_user.real_name }}!</p>
-                    {% if not current_user.can_create_title() %}
-                        <small class="text-muted">
-                            Başlık açmak için {{ 7 - (current_user.created_at.date() - current_user.created_at.date()).days }} gün daha beklemelisin.
-                        </small>
+                    <p>Hoş geldin, <strong>{{ current_user.real_name }}</strong>!</p>
+                    {% if current_user.can_create_title() %}
+                        {# 'main.create_title' yerine 'entry.create_title' kullanıldı #}
+                        <a href="{{ url_for('entry.create_title') }}" class="btn btn-success mt-2"><i class="fas fa-plus-circle"></i> Yeni Başlık Oluştur</a>
+                    {% else %}
+                        {% set remaining_days_for_title = current_user.get_days_to_wait_for_new_title() %}
+                        {% if remaining_days_for_title > 0 %}
+                        <div class="alert alert-secondary mt-2 border-info" role="alert"> {# alert-info yerine alert-secondary veya custom dark alert #}
+                            <small class="text-light">
+                                Yeni başlık oluşturabilmek için henüz <strong>{{ remaining_days_for_title }}</strong> gün daha beklemeniz gerekmektedir.
+                            </small>
+                        </div>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
             </div>
-        {% endfor %}
+
+            <div class="mb-4">
+                <form class="d-flex" method="GET" action="{{ url_for('main.search') }}">
+                    <input class="form-control me-2 bg-dark text-light border-secondary" type="search" name="q" placeholder="Başlık veya entry içinde ara..." aria-label="Ara">
+                    <button class="btn btn-outline-light" type="submit"><i class="fas fa-search"></i> Ara</button> {# btn-outline-primary yerine btn-outline-light #}
+                </form>
+            </div>
+
+            <h3 class="mb-3 {% if titles and titles.items %}text-light{% else %}text-muted{% endif %}">Gündemdeki Başlıklar</h3>
+            {% if titles and titles.items %}
+                {% for title in titles.items %}
+                <div class="card mb-4 shadow-sm bg-dark text-light border-secondary">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center border-bottom border-light-subtle"> {# Daha koyu bir header veya farklı bir bg #}
+                        {# 'title_id=title.id' yerine 'id=title.id' kullanıldı #}
+                        <h4 class="mb-0 h5"><a href="{{ url_for('main.view_title', id=title.id) }}" class="text-white text-decoration-none">{{ title.name }}</a></h4>
+                        <span class="badge bg-light text-dark">{{ title.entry_count() }} entry</span> {# Badge açık renk kalabilir kontrast için veya bg-primary text-white #}
+                    </div>
+                    <div class="card-body">
+                        {% if title.entries.count() > 0 %}
+                            <ul class="list-group list-group-flush">
+                                {# En son eklenen 3 entry'yi gösterelim. Bunun için Entry modelinin template context'inde olması gerekir. #}
+                                {% for entry in title.entries.order_by(Entry.created_at.desc()).limit(3).all() %}
+                                <li class="list-group-item px-0 bg-transparent text-light border-top border-secondary">
+                                    <p class="mb-1">{{ entry.content | truncate(200, True, '...') }}</p>
+                                    <small class="text-white-50"> {# text-muted yerine text-white-50 daha iyi olabilir #}
+                                        <i class="fas fa-user"></i> {{ entry.author.nickname if entry.author else 'Bilinmeyen' }} | 
+                                        <i class="far fa-calendar-alt"></i> {{ entry.created_at.strftime('%d %b %Y, %H:%M') if entry.created_at else 'N/A' }}
+                                    </small>
+                                    <div class="mt-2">
+                                      {# 'title_id=title.id' yerine 'id=title.id' kullanıldı #}
+                                      <a href="{{ url_for('main.view_title', id=title.id, _anchor='entry-' ~ entry.id|string) }}" class="btn btn-sm btn-outline-light"> {# btn-outline-secondary yerine btn-outline-light #}
+                                        <i class="fas fa-book-reader"></i> Devamını Oku & Yorumlar
+                                      </a>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                                {% if title.entries.count() > 3 %}
+                                <li class="list-group-item text-center px-0 pt-3 bg-transparent border-top border-secondary">
+                                    {# 'title_id=title.id' yerine 'id=title.id' kullanıldı #}
+                                    <a href="{{ url_for('main.view_title', id=title.id) }}" class="btn btn-outline-light btn-sm"> {# btn-outline-primary yerine btn-outline-light #}
+                                        Bu Başlıktaki Tüm Entry'leri Gör ({{ title.entries.count() }})
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        {% else %}
+                            <p class="text-white-50 fst-italic">Bu başlık altında henüz entry bulunmamaktadır. İlk entry'yi sen ekle!</p> {# text-muted yerine text-white-50 #}
+                        {% endif %}
+                        
+                        {% if current_user.is_authenticated %}
+                             {# 'main.create_entry' yerine 'entry.add_entry' kullanıldı #}
+                             <a href="{{ url_for('entry.add_entry', title_id=title.id) }}" class="btn btn-sm btn-success mt-3"> {# btn-success genelde koyu temada iyi durur #}
+                               <i class="fas fa-pencil-alt"></i> Bu Başlığa Entry Ekle
+                             </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if titles.has_prev %}
+                            <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for(request.endpoint, page=titles.prev_num, **request.view_args) }}">Önceki</a></li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Önceki</span></li>
+                        {% endif %}
+
+                        {% for page_num in titles.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                            {% if page_num %}
+                                {% if titles.page == page_num %}
+                                    <li class="page-item active" aria-current="page"><span class="page-link bg-primary text-white border-primary">{{ page_num }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for(request.endpoint, page=page_num, **request.view_args) }}">{{ page_num }}</a></li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link bg-dark text-muted border-secondary">...</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if titles.has_next %}
+                            <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for(request.endpoint, page=titles.next_num, **request.view_args) }}">Sonraki</a></li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Sonraki</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+
+            {% else %}
+                <div class="alert bg-dark text-light border-secondary" role="alert"> {# Değişiklik burada yapıldı #}
+                    Gösterilecek başlık bulunamadı. İlk başlığı sen oluşturabilirsin!
+                </div>
+            {% endif %}
+        </div>
+        
+        {# Sidebar (İsteğe Bağlı) - Örnek olarak col-md-3 #}
+        {# 
+        <div class="col-md-3">
+            <div class="sticky-top pt-4 text-light">
+                <h4>Popüler Başlıklar</h4>
+                <ul class="list-group">
+                    <li class="list-group-item bg-dark text-light border-secondary">Popüler Başlık 1</li>
+                    <li class="list-group-item bg-dark text-light border-secondary">Popüler Başlık 2</li>
+                    <li class="list-group-item bg-dark text-light border-secondary">Popüler Başlık 3</li>
+                </ul>
+            </div>
+        </div>
+        #}
     </div>
 </div>
 {% endblock %}

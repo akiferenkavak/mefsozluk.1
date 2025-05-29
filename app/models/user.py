@@ -1,5 +1,6 @@
 # app/models/user.py
 from datetime import datetime, timezone
+from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -74,8 +75,21 @@ class User(UserMixin, db.Model):
         if self.is_admin:
             return True
         
-        days_since_creation = (datetime.now(timezone.utc) - self.created_at).days
-        return days_since_creation >= 7
+        # self.created_at'in offset-aware (UTC) olduğundan emin olalım
+        # Veritabanından okunurken timezone bilgisi kaybolmuş olabilir
+        if self.created_at.tzinfo is None:
+            # Eğer naive ise, UTC olarak varsay ve aware yap
+            created_at_aware = self.created_at.replace(tzinfo=timezone.utc)
+        else:
+            # Zaten aware ise (örneğin PostgreSQL gibi bir DB kullanılıyorsa ve doğru ayarlandıysa),
+            # olduğu gibi kullan veya UTC'ye normalize et (eğer farklı bir tz ise)
+            # Ancak sizin default'unuz UTC olduğu için bu senaryoda tzinfo'su varsa UTC'dir.
+            created_at_aware = self.created_at.astimezone(timezone.utc) # Farklı bir aware tz ise UTC'ye çevirir.
+
+        current_time_utc = datetime.now(timezone.utc)
+        days_since_creation = (current_time_utc - created_at_aware).days
+        
+        return days_since_creation >= current_app.config['NEW_USER_WAIT_DAYS']
     
     def follow(self, user):
         if not self.is_following(user):

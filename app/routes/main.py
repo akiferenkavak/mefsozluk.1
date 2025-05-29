@@ -3,6 +3,8 @@ from flask import Blueprint, render_template, request
 from flask_login import login_required
 from app.models.entry import Title, Entry
 from sqlalchemy import desc
+from app.models.entry import Entry, Title # Eğer Title da kullanılıyorsa
+
 
 bp = Blueprint('main', __name__)
 
@@ -15,7 +17,7 @@ def index():
         page=page, per_page=20, error_out=False
     )
     
-    return render_template('main/index.html', titles=titles)
+    return render_template('main/index.html', titles=titles, Entry=Entry)
 
 @bp.route('/title/<int:id>')
 def view_title(id):
