@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ current_user.nickname }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4 text-light">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-9">
+            <div class="bg-dark border-secondary p-4 rounded shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="border-bottom border-secondary pb-2 mb-0">
+                        <i class="fas fa-inbox me-2 text-primary"></i>{{ title }}
+                    </h3>
+                    <div>
+                        <a href="{{ url_for('user.sent_messages') }}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-paper-plane me-1"></i> Gönderilmiş Mesajlar
+                        </a>
+                        {# Yeni mesaj butonu için, kullanıcıları bir "kime mesaj yazılacak" arama sayfasına
+                           veya doğrudan bir kullanıcı profiline yönlendirmek daha yaygındır.
+                           Örnek: <a href="{{ url_for('user.search_users_for_message') }}" class="btn btn-sm btn-success ms-2">Yeni Mesaj</a> 
+                           Şimdilik bu butonu eklemiyorum, isteğinize göre eklenebilir.
+                        #}
+                    </div>
+                </div>
+
+                {% if messages.items %}
+                    {% for message in messages.items %}
+                    <div class="card mb-3 {% if not message.is_read %}bg-secondary border-primary{% else %}bg-secondary border-dark{% endif %} text-light shadow-sm">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="card-title mb-0 {% if not message.is_read %}fw-bold{% endif %}">
+                                    <a href="{{ url_for('user.view_message', id=message.id) }}" class="link-light text-decoration-none hover-underline">
+                                        {{ message.subject }}
+                                    </a>
+                                </h5>
+                                <small class="text-white-50">
+                                    {{ message.created_at.strftime('%d %b %Y, %H:%M') }}
+                                </small>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-white-50">
+                                    Gönderen: 
+                                    <a href="{{ url_for('user.profile', nickname=message.sender.nickname) }}" class="link-light text-decoration-none fst-italic hover-underline">
+                                        {{ message.sender.nickname }}
+                                    </a>
+                                </small>
+                                {% if not message.is_read %}
+                                    <span class="badge bg-primary rounded-pill">Yeni</span>
+                                {% endif %}
+                            </div>
+                            
+                            {# İsteğe bağlı: Mesaj içeriğinden kısa bir önizleme #}
+                            <p class="card-text text-white-50 small mb-2" style="max-height: 40px; overflow: hidden;">
+                                {{ message.content | striptags | truncate(120, True, '...') }}
+                            </p>
+
+                            <div>
+                                <a href="{{ url_for('user.view_message', id=message.id) }}" class="btn btn-sm btn-outline-light">
+                                    <i class="fas fa-eye me-1"></i> Oku
+                                </a>
+                                <a href="{{ url_for('user.send_message', nickname=message.sender.nickname, subject='RE: ' ~ message.subject) }}" class="btn btn-sm btn-outline-primary ms-2">
+                                    <i class="fas fa-reply me-1"></i> Yanıtla
+                                </a>
+                                {# Silme butonu için ayrı bir endpoint ve JS gerekebilir
+                                <form action="{{ url_for('user.delete_message', message_id=message.id) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Bu mesajı silmek istediğinizden emin misiniz?');">
+                                    {{ csrf_token() if csrf_token else "" }}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash me-1"></i> Sil
+                                    </button>
+                                </form>
+                                #}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if messages.pages > 1 %}
+                    <nav aria-label="Gelen mesajlar sayfalama" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if messages.has_prev %}
+                                <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.messages', page=messages.prev_num) }}">Önceki</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Önceki</span></li>
+                            {% endif %}
+
+                            {% for page_num in messages.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                {% if page_num %}
+                                    {% if messages.page == page_num %}
+                                        <li class="page-item active" aria-current="page"><span class="page-link bg-primary text-white border-primary">{{ page_num }}</span></li>
+                                    {% else %}
+                                        <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.messages', page=page_num) }}">{{ page_num }}</a></li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link bg-dark text-muted border-secondary">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if messages.has_next %}
+                                <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.messages', page=messages.next_num) }}">Sonraki</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Sonraki</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                {% else %}
+                    <div class="alert bg-secondary text-light border-dark" role="alert">
+                        Gelen kutunuzda hiç mesaj bulunmuyor.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# Bu sayfaya özel JavaScript kodları gerekirse buraya eklenebilir (örneğin, mesaj silme için AJAX). #}
+{% endblock %}

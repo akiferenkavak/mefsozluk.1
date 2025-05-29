@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ current_user.nickname }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4 text-light">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-9">
+            <div class="bg-dark border-secondary p-4 rounded shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="border-bottom border-secondary pb-2 mb-0">
+                        <i class="fas fa-paper-plane me-2 text-primary"></i>{{ title }}
+                    </h3>
+                    <div>
+                        <a href="{{ url_for('user.messages') }}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-inbox me-1"></i> Gelen Kutusu
+                        </a>
+                    </div>
+                </div>
+
+                {% if messages.items %}
+                    {% for message in messages.items %}
+                    <div class="card mb-3 {% if not message.is_read %}bg-secondary border-secondary{% else %}bg-secondary border-dark{% endif %} text-light shadow-sm">
+                        {# Gönderilmiş mesajlarda 'okunmadı' vurgusu alıcının okuma durumuna göre olmalı.
+                           Eğer mesaj alıcı tarafından okunmadıysa hafif bir vurgu olabilir, ama gelen kutusu kadar belirgin olmayabilir.
+                           Şimdilik, okunmuşsa border-dark, okunmamışsa border-secondary (biraz daha az belirgin) yaptım.
+                        #}
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="card-title mb-0">
+                                    <a href="{{ url_for('user.view_message', id=message.id) }}" class="link-light text-decoration-none hover-underline">
+                                        {{ message.subject }}
+                                    </a>
+                                </h5>
+                                <small class="text-white-50">
+                                    {{ message.created_at.strftime('%d %b %Y, %H:%M') }}
+                                </small>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-white-50">
+                                    Alıcı: 
+                                    <a href="{{ url_for('user.profile', nickname=message.recipient.nickname) }}" class="link-light text-decoration-none fst-italic hover-underline">
+                                        {{ message.recipient.nickname }}
+                                    </a>
+                                </small>
+                                {% if message.is_read %}
+                                    <span class="badge bg-success rounded-pill" title="Alıcı tarafından okundu"><i class="fas fa-check-double me-1"></i>Okundu</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill" title="Alıcı henüz okumadı"><i class="fas fa-check me-1"></i>Gönderildi</span>
+                                {% endif %}
+                            </div>
+                            
+                            <p class="card-text text-white-50 small mb-2" style="max-height: 40px; overflow: hidden;">
+                                {{ message.content | striptags | truncate(120, True, '...') }}
+                            </p>
+
+                            <div>
+                                <a href="{{ url_for('user.view_message', id=message.id) }}" class="btn btn-sm btn-outline-light">
+                                    <i class="fas fa-eye me-1"></i> Mesajı Görüntüle
+                                </a>
+                                {# Gönderilmiş mesajlar için "Yanıtla" butonu genellikle olmaz.
+                                   Silme işlevi eklenebilir, ancak bu sadece gönderenin kutusundan mı silinecek,
+                                   yoksa alıcının kutusundan da mı silinecek gibi durumlar içerir.
+                                   Şimdilik silme butonunu eklemiyorum.
+                                #}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if messages.pages > 1 %}
+                    <nav aria-label="Gönderilmiş mesajlar sayfalama" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if messages.has_prev %}
+                                <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.sent_messages', page=messages.prev_num) }}">Önceki</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Önceki</span></li>
+                            {% endif %}
+
+                            {% for page_num in messages.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                {% if page_num %}
+                                    {% if messages.page == page_num %}
+                                        <li class="page-item active" aria-current="page"><span class="page-link bg-primary text-white border-primary">{{ page_num }}</span></li>
+                                    {% else %}
+                                        <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.sent_messages', page=page_num) }}">{{ page_num }}</a></li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link bg-dark text-muted border-secondary">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if messages.has_next %}
+                                <li class="page-item"><a class="page-link bg-dark text-light border-secondary" href="{{ url_for('user.sent_messages', page=messages.next_num) }}">Sonraki</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link bg-secondary text-muted border-dark">Sonraki</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                {% else %}
+                    <div class="alert bg-secondary text-light border-dark" role="alert">
+                        Henüz hiç mesaj göndermemişsiniz.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# Bu sayfaya özel JavaScript kodları gerekirse buraya eklenebilir. #}
+{% endblock %}

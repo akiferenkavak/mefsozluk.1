@@ -5,11 +5,13 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
 from config import Config
+from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
 migrate = Migrate()
+csrf = CSRFProtect()
 
 def create_app():
     app = Flask(__name__)
@@ -22,6 +24,7 @@ def create_app():
     login_manager.login_message = 'Bu sayfaya erişmek için giriş yapmalısınız.'
     mail.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
     
     # Blueprints
     from app.routes.main import bp as main_bp
@@ -37,6 +40,8 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp, url_prefix='/api')
+    csrf.exempt('api.toggle_favorite')
+    csrf.exempt('api.delete_entry')
     
     return app
 

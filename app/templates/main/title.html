@@ -33,26 +33,23 @@
                             
                             <div>
                                 {% if current_user.is_authenticated %}
-                                    <!-- Favori butonu -->
-                                    <button class="btn btn-sm btn-outline-danger favorite-btn" 
-                                            data-entry-id="{{ entry.id }}"
-                                            data-favorited="{{ 'true' if entry.is_favorited_by(current_user) else 'false' }}">
-                                        <i class="fas fa-heart"></i> {{ entry.favorite_count() }}
+                                    <button class="btn btn-sm favorite-btn {% if entry.is_favorited_by(current_user) %}btn-danger{% else %}btn-outline-danger{% endif %}" 
+                                            data-entry-id="{{ entry.id }}">
+                                        <i class="{% if entry.is_favorited_by(current_user) %}fas fa-heart{% else %}far fa-heart{% endif %}"></i> <span>{{ entry.favorite_count() }}</span>
                                     </button>
                                     
-                                    <!-- Düzenle butonu -->
                                     {% if entry.can_edit(current_user) %}
                                         <a href="{{ url_for('entry.edit_entry', id=entry.id) }}" 
-                                           class="btn btn-sm btn-outline-primary">Düzenle</a>
+                                        class="btn btn-sm btn-outline-primary ms-1">Düzenle</a>
                                     {% endif %}
                                     
-                                    <!-- Admin silme butonu -->
                                     {% if current_user.is_admin %}
-                                        <button class="btn btn-sm btn-outline-danger delete-entry-btn" 
+                                        <button class="btn btn-sm btn-outline-danger delete-entry-btn ms-1" 
                                                 data-entry-id="{{ entry.id }}">Sil</button>
                                     {% endif %}
                                 {% endif %}
                             </div>
+
                         </div>
                     </div>
                 </div>

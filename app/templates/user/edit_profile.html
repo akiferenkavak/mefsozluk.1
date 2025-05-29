@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Profili Düzenle - {{ current_user.nickname }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4 text-light">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card bg-dark border-secondary shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Profili Düzenle</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('user.edit_profile') }}" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.real_name.label(class="form-label text-white-50") }}
+                            {{ form.real_name(class="form-control bg-dark text-light border-secondary" + (" is-invalid" if form.real_name.errors else ""), placeholder="Adınız ve soyadınız") }}
+                            {% if form.real_name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.real_name.errors %}<span>{{ error }}</span><br>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.bio.label(class="form-label text-white-50") }}
+                            {{ form.bio(class="form-control bg-dark text-light border-secondary" + (" is-invalid" if form.bio.errors else ""), rows="5", placeholder="Kendinizden bahsedin... (En fazla 500 karakter)") }}
+                            {% if form.bio.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.bio.errors %}<span>{{ error }}</span><br>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <hr class="border-secondary my-4">
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('user.profile', nickname=current_user.nickname) }}" class="btn btn-outline-light"><i class="fas fa-times me-1"></i> İptal</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

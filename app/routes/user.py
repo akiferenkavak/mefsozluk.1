@@ -131,25 +131,31 @@ def followers(nickname):
 def messages():
     page = request.args.get('page', 1, type=int)
     
-    # Gelen mesajlar
-    messages = Message.query.filter_by(recipient_id=current_user.id)\
-                           .order_by(desc(Message.created_at))\
-                           .paginate(page=page, per_page=10, error_out=False)
+    # Gelen mesajlar (değişken adını messages_pagination olarak değiştirdim 
+    #                    Message model adıyla çakışmaması için)
+    messages_pagination = Message.query.filter_by(recipient_id=current_user.id)\
+                                  .order_by(desc(Message.created_at))\
+                                  .paginate(page=page, per_page=10, error_out=False)
     
-    return render_template('user/messages.html', messages=messages)
+    return render_template('user/messages.html', 
+                           messages=messages_pagination, 
+                           title="Gelen Mesajlarım",  # Sayfa başlığı eklendi
+                           timezone=timezone)         # Timezone eklendi
 
 @bp.route('/messages/sent')
 @login_required
 def sent_messages():
     page = request.args.get('page', 1, type=int)
     
-    # Gönderilen mesajlar
-    messages = Message.query.filter_by(sender_id=current_user.id)\
-                           .order_by(desc(Message.created_at))\
-                           .paginate(page=page, per_page=10, error_out=False)
+    # Gönderilen mesajlar (değişken adını sent_messages_pagination olarak değiştirdim)
+    sent_messages_pagination = Message.query.filter_by(sender_id=current_user.id)\
+                                      .order_by(desc(Message.created_at))\
+                                      .paginate(page=page, per_page=10, error_out=False)
     
-    return render_template('user/sent_messages.html', messages=messages)
-
+    return render_template('user/sent_messages.html', 
+                           messages=sent_messages_pagination, 
+                           title="Gönderilmiş Mesajlarım",  # Sayfa başlığı eklendi
+                           timezone=timezone)             # Timezone eklendi
 @bp.route('/send-message/<nickname>', methods=['GET', 'POST'])
 @login_required
 def send_message(nickname):
@@ -198,13 +204,20 @@ def view_message(id):
 def favorites():
     page = request.args.get('page', 1, type=int)
     
-    # Kullanıcının favorilediği entry'ler
-    favorites = Entry.query.join(Favorite)\
-                          .filter(Favorite.user_id == current_user.id)\
-                          .order_by(desc(Favorite.created_at))\
-                          .paginate(page=page, per_page=10, error_out=False)
-    
-    return render_template('user/favorites.html', entries=favorites)
+    # Kullanıcının favorilediği entry'leri, favoriye eklenme zamanına göre sıralı olarak al
+    # Entry.query.join(...) ile doğrudan Entry nesnelerini çekiyoruz.
+    favorited_entries_pagination = (
+        Entry.query
+        .join(Favorite, Favorite.entry_id == Entry.id)
+        .filter(Favorite.user_id == current_user.id)
+        .order_by(desc(Favorite.created_at))  # En son favorilenenler en üstte
+        .paginate(page=page, per_page=10, error_out=False)
+    )
+        
+    return render_template('user/favorites.html', 
+                           entries=favorited_entries_pagination,  # Şablona 'entries' adıyla gönderiyoruz
+                           title="Favorilerim",                   # Sayfa başlığı için
+                           timezone=timezone)                     # Tarih formatlaması için
 
 @bp.route('/entries')
 @login_required
@@ -216,7 +229,7 @@ def my_entries():
                         .order_by(desc(Entry.created_at))\
                         .paginate(page=page, per_page=10, error_out=False)
     
-    return render_template('user/my_entries.html', entries=entries)
+    return render_template('user/my_entries.html', entries=entries, timezone=timezone)
 
 @bp.route('/settings')
 @login_required
