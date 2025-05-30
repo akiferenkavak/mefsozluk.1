@@ -2,19 +2,19 @@
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
 Flask-Login==0.6.3
-Flask-WTF==1.2.1      # Werkzeug 3.x ile uyumlu olmalı
+Flask-WTF==1.0.0      # Bu sürüm, sorunlu reCAPTCHA v1 importunu içermez
 Flask-Mail==0.9.1
 Flask-Migrate==4.0.5
 
 # Formlar ve Doğrulama
-WTForms==3.1.2          # Flask-WTF 1.2.1 ile uyumlu
+WTForms==3.1.2          # Flask-WTF 1.0.0 ile uyumlu (WTForms>=2.3.3 gerektirir)
 email-validator==2.0.0
 
 # Ortam Değişkenleri Yönetimi
 python-dotenv==1.0.0
 
 # Flask Çekirdek Bağımlılıkları
-Werkzeug==2.0.3      # Flask-WTF'deki url_encode import hatasını çözmek için
+Werkzeug==3.0.1      # Flask 2.3.3 için uyumlu (>=2.3.7 gerekir) ve modern bir sürüm
 Jinja2==3.1.6
 itsdangerous==2.2.0
 click==8.2.1
