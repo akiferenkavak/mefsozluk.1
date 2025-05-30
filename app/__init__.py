@@ -31,14 +31,14 @@ def create_app():
     from app.routes.auth import bp as auth_bp
     from app.routes.entry import bp as entry_bp
     from app.routes.user import bp as user_bp
-    from app.routes.admin import bp as admin_bp
+    from app.routes.admin import admin_bp
     from app.routes.api import bp as api_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(entry_bp, url_prefix='/entry')
     app.register_blueprint(user_bp, url_prefix='/user')
-    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(admin_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
     csrf.exempt('api.toggle_favorite')
     csrf.exempt('api.delete_entry')

@@ -1,198 +1,266 @@
-// app/static/js/main.js
+document.addEventListener('DOMContentLoaded', function () {
+    // CSRF token'ını almak için yardımcı fonksiyon
+    const getCsrfToken = () => {
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) return csrfInput.value;
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) return csrfMeta.content;
+        console.warn('CSRF token bulunamadı. POST istekleri başarısız olabilir.');
+        return null;
+    };
 
-document.addEventListener('DOMContentLoaded', function() {
-    // CSRF token'ını sayfa yüklendiğinde bir kez oku
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    // "Toast" bildirimlerini göstermek için yardımcı fonksiyon
+    const showToast = (message, type = 'success') => {
+        const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            console.warn('Toast container (#toast-container) bulunamadı. Mesaj alert ile gösteriliyor.');
+            alert(message); // Yedek olarak alert kullan
+            return;
+        }
 
-    // Flash mesaj gösterme fonksiyonu (tüm sayfalarda kullanılabilir)
-    function showFlashMessage(message, category) {
-        const flashContainer = document.getElementById('flash-messages-container');
-        if (flashContainer) {
-            const alertDiv = document.createElement('div');
-            // Bootstrap Toast stili için class'lar
-            alertDiv.className = `toast align-items-center text-white bg-${category} border-0 mb-2`;
-            alertDiv.role = 'alert';
-            alertDiv.setAttribute('aria-live', 'assertive');
-            alertDiv.setAttribute('aria-atomic', 'true');
-
-            alertDiv.innerHTML = `
+        const toastId = 'toast-' + Date.now();
+        const toastHTML = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000">
                 <div class="d-flex">
-                    <div class="toast-body">
-                        ${message}
-                    </div>
+                    <div class="toast-body">${message}</div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
-            `;
-            flashContainer.appendChild(alertDiv);
-            
-            // Bootstrap Toast'ı başlat ve göster
-            const toast = new bootstrap.Toast(alertDiv, { delay: 5000 });
+            </div>
+        `;
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+        const toastElement = document.getElementById(toastId);
+        
+        if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+            const toast = new bootstrap.Toast(toastElement);
             toast.show();
-
-            // Toast gizlendikten sonra DOM'dan kaldır
-            alertDiv.addEventListener('hidden.bs.toast', function () {
-                if (alertDiv.parentNode) { // Hâlâ DOM'da mı kontrol et
-                    alertDiv.remove();
-                }
-            });
+            toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
         } else {
-            // Fallback eğer #flash-messages-container yoksa (eski alert yapısı)
-            console.warn('#flash-messages-container bulunamadı, alert kullanılıyor.');
-            alert(`${category.toUpperCase()}: ${message}`);
+            console.warn('Bootstrap Toast objesi bulunamadı. Toast basitçe gösteriliyor.');
+            toastElement.classList.add('show'); // Basitçe göster, kendi kendine kaybolmaz
+            setTimeout(() => toastElement.remove(), 5000); // 5 saniye sonra kaldır
         }
-    }
+    };
 
-    // Profil sayfasındaki Takip Et/Takipten Çık butonu için özel mantık
-    const followBtnOnProfile = document.getElementById('followBtn');
-    if (followBtnOnProfile) {
-        const buttonElement = followBtnOnProfile; // `this` referans sorununu çözmek için
+    // Sunucuya Fetch API ile istek göndermek için genel yardımcı fonksiyon
+    const makeFetchRequest = (url, options = { method: 'POST' }, successCallback, buttonElement) => {
+        let originalButtonHtml = '';
+        if (buttonElement) {
+            originalButtonHtml = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...';
+            buttonElement.disabled = true;
+        }
 
-        buttonElement.addEventListener('click', function() {
-            // console.log('Profile Follow button clicked');
-            
-            const nickname = buttonElement.dataset.nickname;
-            let action = buttonElement.dataset.action;      
-            
-            if (!csrfToken) {
-                console.error('CSRF token bulunamadı (profile follow).');
-                showFlashMessage('Güvenlik token\'ı bulunamadı. Sayfayı yenileyin.', 'danger');
-                return;
+        const csrfToken = getCsrfToken();
+        const headers = {
+            'Accept': 'application/json',
+            ...options.headers // Gelen diğer header'ları ekle
+        };
+        if (csrfToken && (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE')) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+         // Eğer body JSON ise Content-Type'ı ayarla
+        if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(options.body);
+        }
+
+
+        fetch(url, { ...options, headers: headers })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errData => Promise.reject(errData || { message: `HTTP error! Status: ${response.status}` }));
             }
-            
-            const followUrl = `/user/follow/${nickname}`; // Bu URL yapısının doğru olduğunu varsayıyoruz
-            const unfollowUrl = `/user/unfollow/${nickname}`; // Bu URL yapısının doğru olduğunu varsayıyoruz
-            const url = action === 'follow' ? followUrl : unfollowUrl;
-            
-            buttonElement.disabled = true; 
-            
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken 
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw { status: response.status, data: errData }; 
-                    }).catch(() => {
-                        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
-                    });
-                }
+            // Yanıtın içeriği olmayabilir (örn: 204 No Content)
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
                 return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    const followBtnText = document.getElementById('followBtnText'); 
-                    const followerCountBadge = document.getElementById('followerCountBadge'); 
-                    const icon = buttonElement.querySelector('i');
-
-                    if (action === 'follow') {
-                        buttonElement.dataset.action = 'unfollow'; 
-                        if (followBtnText) followBtnText.textContent = 'Takipten Çık';
-                        buttonElement.classList.remove('btn-success'); 
-                        buttonElement.classList.add('btn-danger');    
-                        if (icon) {
-                            icon.classList.remove('fa-user-plus');
-                            icon.classList.add('fa-user-minus');
-                        }
-                    } else { // action === 'unfollow'
-                        buttonElement.dataset.action = 'follow';   
-                        if (followBtnText) followBtnText.textContent = 'Takip Et';
-                        buttonElement.classList.remove('btn-danger');  
-                        buttonElement.classList.add('btn-success');  
-                        if (icon) {
-                            icon.classList.remove('fa-user-minus');
-                            icon.classList.add('fa-user-plus');
-                        }
-                    }
-                    
-                    if (followerCountBadge && data.follower_count !== undefined) {
-                        followerCountBadge.textContent = data.follower_count;
-                    }
-                    
-                    showFlashMessage(data.message, 'success');
-                } else {
-                    showFlashMessage(data.message || 'İşlem başarısız oldu.', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Profile Follow/Unfollow Fetch Error:', error);
-                let errorMessage = 'Bir hata oluştu. Lütfen tekrar deneyin.';
-                if (error && error.data && error.data.message) {
-                    errorMessage = error.data.message; 
-                } else if (error && error.message) {
-                    errorMessage = error.message;
-                }
-                showFlashMessage(errorMessage, 'danger');
-            })
-            .finally(() => {
-                buttonElement.disabled = false; 
-            });
-        });
-    }
-
-    // Diğer genel AJAX butonlarınız (örn: .favorite-btn, .follow-toggle-btn, .delete-entry-btn) için
-    // event listener'lar da buraya eklenebilir. Her biri kendi `if (document.querySelector(...))`
-    // kontrolü içinde olmalıdır ki sadece ilgili elementler sayfada varsa çalışsınlar.
-    // Örneğin, daha önce followers.html/following.html için önerdiğim .follow-toggle-btn kodu:
-    document.querySelectorAll('.follow-toggle-btn').forEach(button => {
-        // #followBtn ID'li elemente zaten yukarıda listener eklediğimiz için tekrar eklemeyelim.
-        // Bu, eğer .follow-toggle-btn class'ı aynı zamanda #followBtn ID'li elementte de varsa önemlidir.
-        // Genellikle ID'ler benzersiz olduğu için bu kontrol gerekmeyebilir ya da farklı class/ID stratejisi izlenir.
-        if (button.id === 'followBtn') return; 
-
-        button.addEventListener('click', function() {
-            const thisButton = this;
-            const userNickname = thisButton.dataset.nickname;
-            let currentAction = thisButton.dataset.action;
-
-            if (!csrfToken) {
-                showFlashMessage('Güvenlik token\'ı bulunamadı. Lütfen sayfayı yenileyin.', 'danger');
-                return;
+            } else {
+                return { success: true, message: response.statusText || "İşlem başarılı." }; // JSON olmayan başarılı yanıtlar için
             }
-            
-            const followUrl = `/user/follow/${userNickname}`; // veya url_for ile oluşturulmuşsa o yapı
-            const unfollowUrl = `/user/unfollow/${userNickname}`;
-            const url = currentAction === 'follow' ? followUrl : unfollowUrl;
-            
-            thisButton.disabled = true;
+        })
+        .then(data => {
+            if (data.success) {
+                showToast(data.message || "İşlem başarıyla tamamlandı.", 'success');
+                if (successCallback) successCallback(data);
+            } else {
+                showToast(data.message || 'Bir hata oluştu.', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Hatası:', error);
+            const errorMessage = error.message || (typeof error === 'string' ? error : 'İstek gönderilirken bir ağ hatası oluştu.');
+            showToast(errorMessage, 'danger');
+        })
+        .finally(() => {
+            if (buttonElement) {
+                buttonElement.innerHTML = originalButtonHtml;
+                buttonElement.disabled = false;
+            }
+        });
+    };
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                }
-            })
-            .then(response => { /* ... (response handling) ... */ if (!response.ok) { return response.json().then(err => { throw {data: err}; }); } return response.json(); })
-            .then(data => {
-                if (data.success) {
-                    if (currentAction === 'follow') {
-                        thisButton.dataset.action = 'unfollow';
-                        thisButton.innerHTML = '<i class="fas fa-user-minus me-1"></i>Takipten Çık';
-                        thisButton.classList.remove('btn-success');
-                        thisButton.classList.add('btn-danger');
+    // --- Admin Kullanıcı Yönetimi İşlemleri ---
+    // Bu kısım sadece admin/users.html sayfasında çalışacak elementler için.
+    // Daha güvenli olması için, bu kodun sadece admin/users sayfasında çalışmasını sağlayacak bir kontrol eklenebilir
+    // (örneğin body class'ı veya spesifik bir elementin varlığı kontrol edilerek).
+    // Şimdilik, buton class'larının varlığına göre çalışacak.
+
+    // Aktif/Pasif Durumu Değiştirme Butonları
+    document.querySelectorAll('.toggle-active-btn').forEach(button => {
+        button.addEventListener('click', function (e) {
+            e.preventDefault();
+            const userId = this.dataset.userId;
+            const url = this.dataset.url;
+            makeFetchRequest(url, { method: 'POST' }, (data) => {
+                const statusBadge = document.getElementById(`status-active-${userId}`);
+                const buttonText = document.getElementById(`toggle-active-text-${userId}`);
+                if (statusBadge && buttonText) {
+                    if (data.is_active) {
+                        statusBadge.className = 'badge bg-success';
+                        statusBadge.textContent = 'Evet';
+                        buttonText.textContent = 'Pasif Yap';
                     } else {
-                        thisButton.dataset.action = 'follow';
-                        thisButton.innerHTML = '<i class="fas fa-user-plus me-1"></i>Takip Et';
-                        thisButton.classList.remove('btn-danger');
-                        thisButton.classList.add('btn-success');
+                        statusBadge.className = 'badge bg-danger';
+                        statusBadge.textContent = 'Hayır';
+                        buttonText.textContent = 'Aktif Yap';
                     }
-                    showFlashMessage(data.message, 'success');
-                } else {
-                    showFlashMessage(data.message || 'İşlem başarısız oldu.', 'danger');
                 }
-            })
-            .catch(error => { /* ... (error handling) ... */ showFlashMessage(error.data?.message || error.message || 'Takip işlemi hatası.', 'danger'); })
-            .finally(() => {
-                thisButton.disabled = false;
-            });
+            }, this);
         });
     });
 
-    // Favori butonları için olan kod da buraya eklenebilir (varsa .favorite-btn class'ı için)
-    // Silme butonları için olan kod da buraya eklenebilir (varsa .delete-entry-btn class'ı için)
+    // Admin Durumu Değiştirme Butonları
+    document.querySelectorAll('.toggle-admin-btn').forEach(button => {
+        button.addEventListener('click', function (e) {
+            e.preventDefault();
+            const userId = this.dataset.userId;
+            const url = this.dataset.url;
+            makeFetchRequest(url, { method: 'POST' }, (data) => {
+                const statusBadge = document.getElementById(`status-admin-${userId}`);
+                const buttonText = document.getElementById(`toggle-admin-text-${userId}`);
+                if(statusBadge && buttonText) {
+                    if (data.is_admin) {
+                        statusBadge.className = 'badge bg-info';
+                        statusBadge.textContent = 'Evet';
+                        buttonText.textContent = 'Adminliği Kaldır';
+                    } else {
+                        statusBadge.className = 'badge bg-secondary';
+                        statusBadge.textContent = 'Hayır';
+                        buttonText.textContent = 'Admin Yap';
+                    }
+                }
+            }, this);
+        });
+    });
 
-});
+    // Kullanıcı Silme İşlemleri
+    const deleteUserModalElement = document.getElementById('deleteUserModal');
+    if (deleteUserModalElement && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const deleteUserModal = new bootstrap.Modal(deleteUserModalElement);
+        let userIdToDelete = null;
+        let userDeleteUrl = null;
+
+        document.querySelectorAll('.delete-user-btn').forEach(button => {
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+                userIdToDelete = this.dataset.userId;
+                userDeleteUrl = this.dataset.url;
+                const userNickname = this.dataset.userNickname;
+                const modalNicknameSpan = deleteUserModalElement.querySelector('#userNicknameToDelete');
+                if(modalNicknameSpan) modalNicknameSpan.textContent = userNickname;
+                deleteUserModal.show();
+            });
+        });
+
+        const confirmDeleteBtn = document.getElementById('confirmDeleteUserBtn');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function () {
+                if (userIdToDelete && userDeleteUrl) {
+                    makeFetchRequest(userDeleteUrl, { method: 'POST' }, (data) => {
+                        const userRow = document.getElementById(`user-row-${userIdToDelete}`);
+                        if (userRow) userRow.remove();
+                        // Opsiyonel: Toplam kullanıcı sayısını güncelle (eğer tabloda gösteriliyorsa)
+                        const totalUsersElement = document.querySelector('.card-header h6'); // Daha spesifik bir seçici gerekebilir
+                        if (totalUsersElement && data.new_total_users !== undefined) {
+                            totalUsersElement.textContent = `Kullanıcı Listesi (Toplam: ${data.new_total_users})`;
+                        } else if (totalUsersElement && users.total) { // Fallback if new_total_users not sent
+                             // Bu kısım doğrudan JS ile güncellenemez, Flask'tan gelen users.total'a erişim yok.
+                             // Sayfa yenilenmeden toplam sayıyı güncellemek için backend'den yeni toplamı almak gerekir.
+                        }
+                    }, this);
+                    deleteUserModal.hide();
+                    userIdToDelete = null;
+                    userDeleteUrl = null;
+                }
+            });
+        }
+    } else if (deleteUserModalElement) {
+        console.warn('Bootstrap Modal objesi bulunamadı. Silme modalı düzgün çalışmayabilir.');
+    }
+
+    // --- Profil Sayfası Takip Butonu İşlemleri (Eğer bu main.js global ise) ---
+    const followBtnOnProfile = document.getElementById('followBtn');
+    if (followBtnOnProfile) {
+        followBtnOnProfile.addEventListener('click', function() {
+            const nickname = this.dataset.nickname;
+            let action = this.dataset.action;
+            const url = action === 'follow' ? `/user/follow/${nickname}` : `/user/unfollow/${nickname}`; // URL'leri backend route'larınıza göre ayarlayın
+
+            makeFetchRequest(url, { method: 'POST' }, (data) => {
+                const followBtnText = document.getElementById('followBtnText'); // Buton içindeki text span'ı
+                const followerCountBadge = document.getElementById('followerCountBadge'); // Takipçi sayısını gösteren span/badge
+                const icon = this.querySelector('i');
+
+                if (action === 'follow') {
+                    this.dataset.action = 'unfollow';
+                    if (followBtnText) followBtnText.textContent = 'Takipten Çık';
+                    this.classList.remove('btn-success');
+                    this.classList.add('btn-danger');
+                    if (icon) {
+                        icon.classList.remove('fa-user-plus');
+                        icon.classList.add('fa-user-minus');
+                    }
+                } else { // action === 'unfollow'
+                    this.dataset.action = 'follow';
+                    if (followBtnText) followBtnText.textContent = 'Takip Et';
+                    this.classList.remove('btn-danger');
+                    this.classList.add('btn-success');
+                    if (icon) {
+                        icon.classList.remove('fa-user-minus');
+                        icon.classList.add('fa-user-plus');
+                    }
+                }
+                if (followerCountBadge && data.follower_count !== undefined) {
+                    followerCountBadge.textContent = data.follower_count;
+                }
+            }, this);
+        });
+    }
+
+    // --- Genel Takip Butonları (Örn: Kullanıcı listelerinde) ---
+    document.querySelectorAll('.follow-toggle-btn').forEach(button => {
+        if (button.id === 'followBtn') return; // Profil sayfasındaki butonu tekrar ele alma
+
+        button.addEventListener('click', function() {
+            const userNickname = this.dataset.nickname;
+            let currentAction = this.dataset.action;
+            const url = currentAction === 'follow' ? `/user/follow/${userNickname}` : `/user/unfollow/${userNickname}`;
+
+            makeFetchRequest(url, { method: 'POST' }, (data) => {
+                if (currentAction === 'follow') {
+                    this.dataset.action = 'unfollow';
+                    this.innerHTML = '<i class="fas fa-user-minus me-1"></i>Takipten Çık';
+                    this.classList.remove('btn-success', 'btn-outline-success');
+                    this.classList.add('btn-danger');
+                } else {
+                    this.dataset.action = 'follow';
+                    this.innerHTML = '<i class="fas fa-user-plus me-1"></i>Takip Et';
+                    this.classList.remove('btn-danger', 'btn-outline-danger');
+                    this.classList.add('btn-success');
+                }
+                // Takipçi sayısını güncellemek için ek mantık gerekebilir (eğer bu butonlar bir listedeyse)
+            }, this);
+        });
+    });
+
+}); // DOMContentLoaded sonu

@@ -1,130 +1,295 @@
-# Admin dashboard template
-<!-- app/templates/admin/dashboard.html -->
-{% extends "base.html" %}
+{% extends "base.html" %} {% block page_title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h2>Admin Dashboard</h2>
-        <hr>
+<div class="container-fluid mt-4 mb-5"> <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Admin Dashboard</h2>
+        </div>
     </div>
-</div>
 
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <h5 class="card-title">Toplam Kullanıcı</h5>
-                <h3>{{ stats.total_users }}</h3>
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <a href="{{ url_for('admin.manage_users') }}" class="text-decoration-none">
+                <div class="card text-white bg-primary h-100 shadow-sm custom-dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-xs fw-bold text-uppercase mb-1">Toplam Kullanıcı</div>
+                                <div class="h3 mb-0 fw-bold">{{ stats.total_users|default('0') }}</div>
+                            </div>
+                            <i class="fas fa-users fa-3x text-white-50"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between small">
+                        <span>Detayları Gör</span>
+                        <i class="fas fa-angle-right"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <a href="{{ url_for('admin.manage_titles') }}" class="text-decoration-none">
+                <div class="card text-white bg-success h-100 shadow-sm custom-dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-xs fw-bold text-uppercase mb-1">Toplam Başlık</div>
+                                <div class="h3 mb-0 fw-bold">{{ stats.total_titles|default('0') }}</div>
+                            </div>
+                            <i class="fas fa-tags fa-3x text-white-50"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between small">
+                        <span>Detayları Gör</span>
+                        <i class="fas fa-angle-right"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+             <a href="{{ url_for('admin.manage_entries') }}" class="text-decoration-none">
+                <div class="card text-white bg-info h-100 shadow-sm custom-dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-xs fw-bold text-uppercase mb-1">Toplam Entry</div>
+                                <div class="h3 mb-0 fw-bold">{{ stats.total_entries|default('0') }}</div>
+                            </div>
+                            <i class="far fa-newspaper fa-3x text-white-50"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between small">
+                        <span>Detayları Gör</span>
+                        <i class="fas fa-angle-right"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card text-white bg-warning h-100 shadow-sm custom-dashboard-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs fw-bold text-uppercase mb-1">Toplam Favori</div>
+                            <div class="h3 mb-0 fw-bold">{{ stats.total_favorites|default('N/A') }}</div>
+                        </div>
+                        <i class="fas fa-heart fa-3x text-white-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between small text-white-75">
+                    <span>İstatistik</span>
+                    <span>&nbsp;</span>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <h5 class="card-title">Toplam Başlık</h5>
-                <h3>{{ stats.total_titles }}</h3>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm theme-card-dark">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between theme-card-header-dark">
+                    <h6 class="m-0 fw-bold"><i class="fas fa-user-clock me-2"></i>Son Kaydolan Kullanıcılar</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_users %}
+                    <ul class="list-group list-group-flush theme-list-group-dark">
+                        {% for user in recent_users %}
+                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{{ url_for('admin.manage_users', search=user.nickname) }}" class="theme-link-dark">{{ user.nickname }}</a>
+                                <small class="d-block theme-text-muted-dark">{{ user.email }}</small>
+                                <small class="d-block theme-text-muted-dark">Rol: <span class="badge bg-{{ 'info' if user.is_admin else 'secondary' }}">{{ 'Admin' if user.is_admin else 'Kullanıcı' }}</span></small>
+                            </div>
+                            <small class="theme-text-muted-dark">{{ user.created_at.strftime('%d.%m.%y %H:%M') }}</small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-center theme-text-muted-dark mt-3">Henüz yeni kullanıcı yok.</p>
+                    {% endif %}
+                </div>
+                {% if recent_users %}
+                <div class="card-footer text-center theme-card-footer-dark py-2">
+                    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-light btn-sm">Tüm Kullanıcıları Gör</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm theme-card-dark">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between theme-card-header-dark">
+                    <h6 class="m-0 fw-bold"><i class="fas fa-tags me-2"></i>Son Açılan Başlıklar</h6>
+                </div>
+                <div class="card-body">
+                     {% if recent_titles %}
+                    <ul class="list-group list-group-flush theme-list-group-dark">
+                        {% for title in recent_titles %}
+                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{{ url_for('admin.manage_titles', search=title.name) }}" class="theme-link-dark">{{ title.name }}</a>
+                                <small class="d-block theme-text-muted-dark">{{ title.entry_count() }} entry</small>
+                            </div>
+                            <small class="theme-text-muted-dark">{{ title.created_at.strftime('%d.%m.%y %H:%M') }}</small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-center theme-text-muted-dark mt-3">Henüz yeni başlık yok.</p>
+                    {% endif %}
+                </div>
+                 {% if recent_titles %}
+                <div class="card-footer text-center theme-card-footer-dark py-2">
+                     <a href="{{ url_for('admin.manage_titles') }}" class="btn btn-outline-light btn-sm">Tüm Başlıkları Gör</a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <h5 class="card-title">Toplam Entry</h5>
-                <h3>{{ stats.total_entries }}</h3>
-            </div>
-        </div>
+
+    <div class="row">
+      <div class="col-md-12 mb-4">
+          <div class="card shadow-sm theme-card-dark">
+              <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between theme-card-header-dark">
+                  <h6 class="m-0 fw-bold"><i class="far fa-comments me-2"></i>Son Entryler</h6>
+              </div>
+              <div class="card-body p-0">
+                  {% if recent_entries %}
+                  <div class="table-responsive">
+                      <table class="table table-hover mb-0 theme-table-dark">
+                          <thead class="theme-table-header-dark">
+                              <tr>
+                                  <th scope="col" style="width: 5%;">#</th>
+                                  <th scope="col" style="width: 25%;">Başlık</th>
+                                  <th scope="col" style="width: 40%;">Entry (Önizleme)</th>
+                                  <th scope="col" style="width: 15%;">Yazar</th>
+                                  <th scope="col" style="width: 15%;">Tarih</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {% for entry in recent_entries %}
+                              <tr>
+                                  <td>{{ loop.index }}</td>
+                                  <td><a href="{{ url_for('main.view_title', id=entry.title_id) }}" target="_blank" class="theme-link-dark" title="{{entry.title.name}}">{{ entry.title.name|truncate(30) }}</a></td>
+                                  <td>{{ entry.content|striptags|truncate(60) }}</td>
+                                  <td><a href="{{ url_for('admin.manage_users', search=entry.author.nickname) }}" class="theme-link-dark">{{ entry.author.nickname }}</a></td>
+                                  <td><small class="theme-text-muted-dark">{{ entry.created_at.strftime('%d.%m.%y %H:%M') }}</small></td>
+                              </tr>
+                              {% endfor %}
+                          </tbody>
+                      </table>
+                  </div>
+                  {% else %}
+                  <p class="text-center theme-text-muted-dark p-3">Henüz yeni entry yok.</p>
+                  {% endif %}
+              </div>
+              {% if recent_entries %}
+              <div class="card-footer text-center theme-card-footer-dark py-2">
+                   <a href="{{ url_for('admin.manage_entries') }}" class="btn btn-outline-light btn-sm">Tüm Entryleri Gör</a>
+              </div>
+              {% endif %}
+          </div>
+      </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <h5 class="card-title
-">Toplam Favori</h5>
-                <h3>{{ stats.total_favorites }}</h3>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <h3>Son Kullanıcılar</h3>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Kullanıcı Adı</th>
-                    <th>Email</th>
-                    <th>Rol</th>
-                    <th>Oluşturulma Tarihi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in recent_users %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ user.nickname }}</td>
-                    <td>{{ user.email }}</td>
-                    <td>{{ user.role }}</td>
-                    <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <h3>Son Başlıklar</h3>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Başlık Adı</th>
-                    <th>Entry Sayısı</th>
-                    <th>Oluşturulma Tarihi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for title in recent_titles %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ title.name }}</td>
-                    <td>{{ title.entry_count() }}</td>
-                    <td>{{ title.created_at.strftime('%d.%m.%Y') }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <h3>Son Entryler</h3>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Başlık</th>
-                    <th>Entry İçeriği</th>
-                    <th>Yazar</th>
-                    <th>Oluşturulma Tarihi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in recent_entries %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ entry.title.name }}</td>
-                    <td>{{ entry.content[:50] }}...</td>
-                    <td>{{ entry.author.nickname }}</td>
-                    <td>{{ entry.created_at.strftime('%d.%m.%Y') }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+
 </div>
 {% endblock %}
 
+{% block styles %}
+{{ super() }}
+<style>
+    .custom-dashboard-card { /* İstatistik kartları için */
+        border: none;
+        transition: all 0.3s ease-in-out;
+    }
+    .custom-dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    }
+    .custom-dashboard-card .card-body .text-xs {
+        font-size: 0.75rem;
+    }
+    .custom-dashboard-card .card-footer {
+        background-color: rgba(0,0,0,0.1);
+        border-top: none;
+        color: rgba(255,255,255,0.8);
+        padding: 0.75rem 1.25rem;
+    }
+    .custom-dashboard-card:hover .card-footer {
+        background-color: rgba(0,0,0,0.2);
+    }
+
+    /* Koyu Tema için "Son Aktiviteler" Kartları */
+    .theme-card-dark {
+        background-color: #212529; /* Bootstrap dark rengi veya kendi koyu renginiz */
+        color: #f8f9fa; /* Açık renk metin */
+        border: 1px solid #495057; /* Koyu tema için sınır */
+    }
+    .theme-card-header-dark {
+        background-color: #343a40; /* Header için biraz daha açık koyu */
+        border-bottom: 1px solid #495057;
+        color: #f8f9fa; /* Header metin rengi */
+    }
+    .theme-card-header-dark h6 {
+        color: #f8f9fa; /* Başlık rengini de açık yap */
+    }
+    .theme-card-dark .card-body {
+        color: #f8f9fa;
+    }
+    .theme-list-group-dark .list-group-item {
+        background-color: transparent; /* Kartın arka planını kullanır */
+        border-color: #495057; /* Liste elemanı sınırı */
+        color: #f8f9fa;
+    }
+    .theme-link-dark {
+        color: #6cb2eb; /* Koyu temada okunabilir link rengi */
+        text-decoration: none;
+    }
+    .theme-link-dark:hover {
+        color: #8ec9f2;
+        text-decoration: underline;
+    }
+    .theme-text-muted-dark {
+        color: #adb5bd !important; /* Bootstrap'in .text-muted'unun koyu tema versiyonu */
+    }
+    .theme-card-footer-dark {
+        background-color: #343a40;
+        border-top: 1px solid #495057;
+    }
+    .theme-card-footer-dark .btn-outline-light { /* Butonları da uydur */
+        color: #f8f9fa;
+        border-color: #f8f9fa;
+    }
+    .theme-card-footer-dark .btn-outline-light:hover {
+        background-color: #f8f9fa;
+        color: #212529;
+    }
+
+    /* Koyu Tema için Tablo Stilleri */
+    .theme-table-dark {
+        color: #f8f9fa; /* Tablo metin rengi */
+    }
+    .theme-table-dark th,
+    .theme-table-dark td,
+    .theme-table-dark thead th,
+    .theme-table-dark tbody + tbody {
+        border-color: #495057; /* Tablo sınır renkleri */
+    }
+    .theme-table-header-dark { /* thead için özel */
+        background-color: #343a40; /* Tablo başlığı arka planı */
+        color: #f8f9fa;
+        border-bottom: 2px solid #495057; /* Başlık altı sınırı daha belirgin */
+    }
+    .table-hover.theme-table-dark tbody tr:hover {
+        background-color: #3e444a; /* Hover için biraz daha açık koyu */
+        color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
 {% block scripts %}
+{{ super() }}
+{% endblock %}

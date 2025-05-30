@@ -1,0 +1,156 @@
+{% extends "base.html" %} {% block page_title %}Kullanıcıları Yönet{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Kullanıcıları Yönet</h2>
+        <!-- İsteğe bağlı: Yeni kullanıcı ekleme butonu
+        <a href="{{ url_for('auth.register') }}" class="btn btn-success">
+            <i class="fas fa-user-plus me-1"></i> Yeni Kullanıcı Ekle
+        </a>
+        -->
+    </div>
+
+    <form method="GET" action="{{ url_for('admin.manage_users') }}" class="mb-4">
+        <div class="input-group">
+            <input type="text" class="form-control" name="search" placeholder="Kullanıcı adı veya email ile ara..." value="{{ search|default('') }}">
+            <input type="hidden" name="sort_by" value="{{ sort_by|default('created_at') }}">
+            <input type="hidden" name="sort_order" value="{{ sort_order|default('desc') }}">
+            <button class="btn btn-outline-primary" type="submit"><i class="fas fa-search me-1"></i> Ara</button>
+        </div>
+    </form>
+
+    {# Flash mesajları göstermek için _flash_messages.html'in var olduğundan emin olun #}
+    {% include '_flash_messages.html' %} 
+
+    {% if users and users.items %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-light py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Kullanıcı Listesi (Toplam: {{ users.total }})</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            {% macro sortable_th(field_name, display_name, current_sort_by, current_sort_order, current_search) -%}
+                                <th scope="col">
+                                    <a href="{{ url_for('admin.manage_users', page=request.args.get('page', 1), search=current_search, sort_by=field_name, sort_order='asc' if current_sort_by == field_name and current_sort_order == 'desc' else 'desc') }}" class="text-decoration-none text-dark">
+                                        {{ display_name }}
+                                        {% if current_sort_by == field_name %}
+                                            <i class="fas fa-sort-{{ 'up' if current_sort_order == 'asc' else 'down' }} ms-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                            {%- endmacro %}
+
+                            {{ sortable_th('id', 'ID', sort_by, sort_order, search) }}
+                            {{ sortable_th('nickname', 'Kullanıcı Adı', sort_by, sort_order, search) }}
+                            {{ sortable_th('email', 'Email', sort_by, sort_order, search) }}
+                            {{ sortable_th('is_active', 'Aktif', sort_by, sort_order, search) }}
+                            {{ sortable_th('is_admin', 'Admin', sort_by, sort_order, search) }}
+                            {{ sortable_th('created_at', 'Kayıt Tarihi', sort_by, sort_order, search) }}
+                            <th scope="col" class="text-center">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_item in users.items %} {# user -> user_item olarak değiştirildi, current_user ile çakışmaması için #}
+                        <tr>
+                            <td>{{ user_item.id }}</td>
+                            <td>
+                                <a href="{{ url_for('user.profile', nickname=user_item.nickname) }}" target="_blank" class="text-decoration-none">{{ user_item.nickname }}</a>
+                            </td>
+                            <td>{{ user_item.email }} {% if user_item.email_confirmed is defined and not user_item.email_confirmed %}<span class="badge bg-warning text-dark ms-1" title="Email Onaylanmamış"><i class="fas fa-exclamation-triangle"></i></span>{% endif %}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if user_item.is_active else 'danger' }}">
+                                    {{ 'Evet' if user_item.is_active else 'Hayır' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'info' if user_item.is_admin else 'secondary' }}">
+                                    {{ 'Evet' if user_item.is_admin else 'Hayır' }}
+                                </span>
+                            </td>
+                            <td><small>{{ user_item.created_at.strftime('%d.%m.%Y %H:%M') }}</small></td>
+                            <td class="text-center">
+                                <form action="{{ url_for('admin.toggle_user_active_status', user_id=user_item.id) }}" method="POST" class="d-inline-block me-1">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if user_item.is_active else 'success' }}" title="{{ 'Pasif Yap' if user_item.is_active else 'Aktif Yap' }}">
+                                        <i class="fas fa-power-off"></i>
+                                    </button>
+                                </form>
+
+                                <form action="{{ url_for('admin.toggle_admin_status', user_id=user_item.id) }}" method="POST" class="d-inline-block me-1">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if user_item.is_admin else 'info' }}" title="{{ 'Adminliği Kaldır' if user_item.is_admin else 'Admin Yap' }}">
+                                        <i class="fas fa-user-shield"></i>
+                                    </button>
+                                </form>
+                                
+                                {% if user_item.id != current_user.id %}
+                                <form action="{{ url_for('admin.delete_user', user_id=user_item.id) }}" method="POST" class="d-inline-block" onsubmit="return confirm('{{ user_item.nickname }} adlı kullanıcıyı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Kullanıcıyı Sil">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if users.pages > 1 %}
+        <div class="card-footer bg-light border-top py-2">
+            <nav aria-label="Kullanıcılar sayfalama">
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item {% if not users.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.manage_users', page=users.prev_num, search=search, sort_by=sort_by, sort_order=sort_order) if users.has_prev else '#_prev' }}">Önceki</a>
+                    </li>
+                    {% for page_num in users.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {% if users.page == page_num %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.manage_users', page=page_num, search=search, sort_by=sort_by, sort_order=sort_order) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {% if not users.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.manage_users', page=users.next_num, search=search, sort_by=sort_by, sort_order=sort_order) if users.has_next else '#_next' }}">Sonraki</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center" role="alert">
+        Aradığınız kriterlere uygun kullanıcı bulunamadı veya henüz hiç kullanıcı yok.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    /* İsteğe bağlı özel stiller buraya eklenebilir */
+    .table th a i.fa-sort { /* Varsayılan sıralama ikonu için */
+        opacity: 0.4;
+    }
+    .btn-group-sm > .btn, .btn-sm { /* Butonların aynı hizada görünmesi için */
+        padding: .25rem .5rem;
+        font-size: .875rem;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+{% endblock %}
